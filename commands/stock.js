@@ -163,17 +163,35 @@ module.exports = {
 
     const countdown = getStockCountdownString();
     const resetTimestamp = getStockResetTimestamp();
-    const imageBuffer = await createStockImage(stock);
-    const attachment = new AttachmentBuilder(imageBuffer, { name: 'stock.png' });
-    const embed = buildStockEmbed(stock, countdown, resetTimestamp, true);
-    const row = buildStockRow(stock);
     const content = 'here is the current pack stock!';
 
     if (message) {
+      // Message-based invocation: send synchronously
+      const imageBuffer = await createStockImage(stock);
+      const attachment = new AttachmentBuilder(imageBuffer, { name: 'stock.png' });
+      const embed = buildStockEmbed(stock, countdown, resetTimestamp, true);
+      const row = buildStockRow(stock);
       return message.channel.send({ content, embeds: [embed], components: [row], files: [attachment] });
     }
 
-    return interaction.reply({ content, embeds: [embed], components: [row], files: [attachment] });
+    // Interaction-based invocation: defer reply to avoid timeouts and show a fast acknowledgement
+    await interaction.deferReply();
+    let imageBuffer = null;
+    let attachment = null;
+    try {
+      imageBuffer = await createStockImage(stock);
+      attachment = new AttachmentBuilder(imageBuffer, { name: 'stock.png' });
+    } catch (err) {
+      console.error('[stock] createStockImage failed:', err && err.message ? err.message : err);
+    }
+    const embed = buildStockEmbed(stock, countdown, resetTimestamp, !!attachment);
+    const row = buildStockRow(stock);
+
+    // Edit the deferred reply with the stock embed (with or without attachment)
+    if (attachment) {
+      return interaction.editReply({ content, embeds: [embed], components: [row], files: [attachment] });
+    }
+    return interaction.editReply({ content, embeds: [embed], components: [row] });
   },
 
   async handleButton(interaction, buttonIndex) {
@@ -225,17 +243,58 @@ module.exports = {
 
     const countdown = getStockCountdownString();
     const resetTimestamp = getStockResetTimestamp();
-    const imageBuffer = await createStockImage(updatedStock);
-    const attachment = new AttachmentBuilder(imageBuffer, { name: 'stock.png' });
-    const embed = buildStockEmbed(updatedStock, countdown, resetTimestamp, true);
+    // Acknowledge the button interaction quickly to avoid "Unknown interaction" errors
+    try {
+      await interaction.deferUpdate();
+    } catch (err) {
+      console.warn('[stock] interaction.deferUpdate failed (continuing):', err && err.message ? err.message : err);
+    }
+
+    let imageBuffer = null;
+    let attachment = null;
+    try {
+      imageBuffer = await createStockImage(updatedStock);
+      attachment = new AttachmentBuilder(imageBuffer, { name: 'stock.png' });
+    } catch (err) {
+      console.error('[stock] createStockImage failed after buy:', err && err.message ? err.message : err);
+    }
+
+    const embed = buildStockEmbed(updatedStock, countdown, resetTimestamp, !!attachment);
     const row = buildStockRow(updatedStock);
 
-    await interaction.update({
-      content: 'here is the current pack stock!',
-      embeds: [embed],
-      components: [row],
-      files: [attachment]
-    });
+    // Try to edit the original message (safer than interaction.update for long operations)
+    try {
+      if (interaction.message && typeof interaction.message.edit === 'function') {
+        if (attachment) {
+          await interaction.message.edit({ content: 'here is the current pack stock!', embeds: [embed], components: [row], files: [attachment] });
+        } else {
+          await interaction.message.edit({ content: 'here is the current pack stock!', embeds: [embed], components: [row] });
+        }
+      } else if (interaction.channel && interaction.message && interaction.message.id) {
+        const msg = await interaction.channel.messages.fetch(interaction.message.id).catch(() => null);
+        if (msg && typeof msg.edit === 'function') {
+          if (attachment) {
+            await msg.edit({ content: 'here is the current pack stock!', embeds: [embed], components: [row], files: [attachment] });
+          } else {
+            await msg.edit({ content: 'here is the current pack stock!', embeds: [embed], components: [row] });
+          }
+        } else {
+          // fallback: send a normal channel message
+          if (attachment) {
+            await interaction.channel.send({ content: 'here is the current pack stock!', embeds: [embed], components: [row], files: [attachment] });
+          } else {
+            await interaction.channel.send({ content: 'here is the current pack stock!', embeds: [embed], components: [row] });
+          }
+        }
+      } else {
+        if (attachment) await interaction.channel.send({ content: 'here is the current pack stock!', embeds: [embed], components: [row], files: [attachment] });
+        else await interaction.channel.send({ content: 'here is the current pack stock!', embeds: [embed], components: [row] });
+      }
+    } catch (err) {
+      console.error('[stock] Failed to update stock message after purchase:', err && err.message ? err.message : err);
+      try { await interaction.followUp({ content: `You bought 1x ${pack.icon} **${pack.name}** for **${price} gems**!`, ephemeral: true }); } catch(e){}
+      return;
+    }
 
     return interaction.followUp({ content: `You bought 1x ${pack.icon} **${pack.name}** for **${price} gems**!`, ephemeral: true });
   }

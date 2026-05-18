@@ -73,9 +73,18 @@ Example:
 ### Multi-target (`count` / `scount`) guidance
 
 - If a card uses `count` (normal attack multi-target) or `scount` (special multi-target), the intended behavior is to split the card's attack across the chosen targets.
-- For data authors and card-adder tools: when specifying `count: 2` set the per-target attack to approximately half the usual value (or author the total attack and the runtime will divide it by 2). For `count: 3` divide by 3.
-- Example: a special that normally does `18` total damage with `scount: 2` should deal ~`9` to each target; with `scount: 3` it should be ~`6` each.
-- The runtime also supports dividing the computed base damage across selected targets, so card-adder tools may either provide total attack values or pre-divided per-target values — but be consistent.
+- IMPORTANT: Only set a `count` or `scount` property when the card input explicitly includes a leading target token before the parentheses. The canonical authoring tokens are:
+  - `2`  → `count: 2`
+  - `3`  → `count: 3`
+  - `-2` → `scount: 2`
+  - `-3` → `scount: 3`
+  (Do NOT add `count`/`scount` otherwise.)
+- For data authors and card-adder tools: when specifying `count: 2` the authored `attack_min`/`attack_max` represent the *total* attack pool and will be split across 2 targets at runtime (per-target = total/2). For `count: 3` per-target = total/3. The same applies to `scount` for special attacks.
+- Example: a special that authors a total `max_atk = 18` with `scount: 2` will deal ~`9` to each target; with `scount: 3` it will deal ~`6` to each.
+- Icon tokens: include the matching icon on consolidated cards when using target counts. Use the following tokens for quick embed display:
+  - `count: 2` or `scount: 2` → `countIcon` / `scountIcon`: `<:2_:1503002986560094228>`
+  - `count: 3` or `scount: 3` → `countIcon` / `scountIcon`: `<:3_:1503002985578365118>`
+- Validation: card-adder tools MUST only add `count`/`scount` for cards that had the leading token; use the project's `scripts/validate-card-counts.js` to verify enforcement before committing.
 
 ## Attributes
 

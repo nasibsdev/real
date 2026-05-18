@@ -117,7 +117,7 @@ module.exports = [
 {
     name: "God's Army",
     icon: '<:1000049982:1505234193779523664>',
-    packImage: 'https://files.catbox.moe/daq3me.png',
+    packImage: 'https://files.catbox.moe/o3csno.webp',
     rank: 'B',
     color: '#afefff'
   },

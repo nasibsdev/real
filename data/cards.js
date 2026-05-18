@@ -155,12 +155,19 @@ function flattenCards(consolidatedCards) {
       if (card.special_attack) flattedCard.scount = val;
       else flattedCard.count = val;
     }
-    // Icon fields: prefer explicit count/scount icons, fall back to legacy allIcon
-    if (card.countIcon) flattedCard.countIcon = card.countIcon;
-    if (card.scountIcon) flattedCard.scountIcon = card.scountIcon;
-    if (card.allIcon) {
-      if (card.special_attack) flattedCard.scountIcon = card.allIcon;
-      else flattedCard.countIcon = card.allIcon;
+
+    // Always set canonical icons for `count`/`scount` at flatten-time.
+    // Do NOT rely on per-card `countIcon`/`scountIcon` properties; these
+    // should not be present in consolidated card objects.
+    const COUNT_ICON_BY_VALUE = {
+      2: '<:2_:1503002986560094228>',
+      3: '<:3_:1503002985578365118>'
+    };
+    if (flattedCard.count !== undefined && COUNT_ICON_BY_VALUE[flattedCard.count]) {
+      flattedCard.countIcon = COUNT_ICON_BY_VALUE[flattedCard.count];
+    }
+    if (flattedCard.scount !== undefined && COUNT_ICON_BY_VALUE[flattedCard.scount]) {
+      flattedCard.scountIcon = COUNT_ICON_BY_VALUE[flattedCard.scount];
     }
     const isArtifact = !!card.artifact;
     if (card.attribute && !isArtifact) flattedCard.attribute = card.attribute;
@@ -215,7 +222,6 @@ const consolidatedCardData = [
       gif: 'https://media1.tenor.com/m/eTo-ytFNLX8AAAAC/luffy-pistol.gif'
     },
     effect: 'stun',
-    count: 2,
     effectDuration: 1,
     image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/0/000/0001.png'
   }, 
@@ -5277,7 +5283,7 @@ const consolidatedCardData = [
     image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/0/600/0686.png'
   },
   {
-    character: 'Nerfeltari Vivi & Wapol',
+    character: 'Nerfeltari Vivi',
     alias: ['vivi wapol', 'nerfeltari vivi'],
     id: '4271',
     pullable: true,
@@ -5290,6 +5296,7 @@ const consolidatedCardData = [
     speed: 9,
     attack_min: 8,
     attack_max: 11,
+    count: 2,
     image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/4/200/4271.png'
   },
   {
@@ -5311,7 +5318,7 @@ const consolidatedCardData = [
     image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/4/200/4238.png'
   },
   {
-    character: 'Blueno & Bepo & Sunny-Kun',
+    character: 'Blueno',
     alias: ['blueno', 'bepo', 'sunny-kun'],
     id: '4025',
     pullable: true,
@@ -5323,10 +5330,11 @@ const consolidatedCardData = [
     speed: 8,
     attack_min: 7,
     attack_max: 10,
+    count: 3,
     image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/4/000/4025.png'
   },
   {
-    character: 'Blueno & Bepo & Sunny-Kun',
+    character: 'Blueno',
     alias: ['blueno', 'bepo', 'sunny-kun'],
     id: '4033',
     pullable: true,
@@ -5541,6 +5549,310 @@ const consolidatedCardData = [
     type: 'boost',
     boost: 'Strawhat Pirates (5%)',
     image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/3/700/3700.png'
+  },
+  // New cards from user submission: Roger Pirates
+  {
+    character: 'Gol D. Roger',
+    alias: ['gol d roger', 'roger', 'king of the pirates'],
+    id: '3176',
+    pullable: true,
+    attribute: 'PSY',
+    emoji: '<:1000051509:1506032208522121247>',
+    faculty: 'Roger Pirates',
+    rank: 'S',
+    power: 26,
+    health: 42,
+    speed: 10,
+    attack_min: 8,
+    attack_max: 11,
+    image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/3/100/3176.png'
+  },
+  {
+    character: 'Gol D. Roger',
+    alias: ['gol d roger', 'roger', 'captain roger'],
+    id: '3177',
+    pullable: true,
+    attribute: 'PSY',
+    emoji: '<:1000051510:1506032443206144222>',
+    title: 'Captain of the Roger Pirates',
+    faculty: 'Roger Pirates',
+    rank: 'SS',
+    power: 36,
+    health: 60,
+    speed: 14,
+    attack_min: 14,
+    attack_max: 18,
+    special_attack: {
+      name: 'God of Fire Ace',
+      min_atk: 30,
+      max_atk: 42,
+      gif: null
+    },
+    effect: 'attackup',
+    effectDuration: -1,
+    itself: true,
+    image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/3/100/3177.png'
+  },
+  {
+    character: 'Gol D. Roger',
+    alias: ['gol d roger', 'roger'],
+    id: '3626',
+    pullable: true,
+    attribute: 'DEX',
+    emoji: '<:1000051511:1506033038490996917>',
+    title: 'Great Pirate with Grand Dreams',
+    faculty: 'Roger Pirates',
+    rank: 'S',
+    power: 24,
+    health: 44,
+    speed: 11,
+    attack_min: 9,
+    attack_max: 12,
+    image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/3/600/3626.png'
+  },
+  {
+    character: 'Gol D. Roger',
+    alias: ['gol d roger', 'roger'],
+    id: '3627',
+    pullable: true,
+    attribute: 'DEX',
+    emoji: '<:1000051512:1506033313981136947>',
+    title: 'Reaching the Final Island',
+    faculty: 'Roger Pirates',
+    rank: 'SS',
+    power: 38,
+    health: 62,
+    speed: 15,
+    attack_min: 14,
+    attack_max: 18,
+    special_attack: {
+      name: 'God of Fire Ace',
+      min_atk: 32,
+      max_atk: 44,
+      gif: null
+    },
+    effect: 'attackup',
+    effectDuration: -1,
+    itself: true,
+    image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/3/600/3627.png'
+  },
+  {
+    character: 'Gol D. Roger',
+    alias: ['gol d roger', 'roger'],
+    id: '3786',
+    pullable: true,
+    attribute: 'PSY',
+    emoji: '<:1000051513:1506033775794978826>',
+    title: 'Clash of the Formidable Forces',
+    faculty: 'Roger Pirates',
+    rank: 'UR',
+    power: 60,
+    health: 90,
+    speed: 22,
+    attack_min: 20,
+    attack_max: 30,
+    special_attack: {
+      name: 'Divine Departure',
+      min_atk: 50,
+      max_atk: 70,
+      gif: null
+    },
+    effect: 'attackup',
+    effectDuration: -1,
+    itself: true,
+    image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/3/700/3786.png'
+  },
+  {
+    character: 'Gol D. Roger',
+    alias: ['gol d roger', 'roger'],
+    id: '3885',
+    pullable: true,
+    attribute: 'QCK',
+    emoji: '<:1000051514:1506034071191556126>',
+    title: 'Parting of The King of The Pirates',
+    faculty: 'Roger Pirates',
+    rank: 'S',
+    power: 26,
+    health: 46,
+    speed: 11,
+    attack_min: 9,
+    attack_max: 12,
+    image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/3/800/3885.png'
+  },
+  {
+    character: 'Gol D. Roger',
+    alias: ['gol d roger', 'roger'],
+    id: '4057',
+    pullable: true,
+    attribute: 'QCK',
+    emoji: '<:1000051515:1506034344274428075>',
+    title: 'Roger & Oden - Set sail to the vast ocean',
+    faculty: 'Roger Pirates',
+    rank: 'S',
+    power: 26,
+    health: 44,
+    speed: 10,
+    attack_min: 12,
+    attack_max: 20,
+    count: 2,
+    image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/4/000/4057.png'
+  },
+  {
+    character: 'Gol D. Roger',
+    alias: ['gol d roger', 'roger'],
+    id: '4058',
+    pullable: true,
+    attribute: 'QCK',
+    emoji: '<:1000051516:1506034685111832697>',
+    title: 'Roger & Oden - Remarkable grand adventure',
+    faculty: 'Roger Pirates',
+    rank: 'SS',
+    power: 38,
+    health: 64,
+    speed: 16,
+    attack_min: 20,
+    attack_max: 36,
+    count: 2,
+    special_attack: {
+      name: 'God of Fire Ace',
+      min_atk: 36,
+      max_atk: 54,
+      gif: null
+    },
+    effect: 'attackup',
+    effectDuration: -1,
+    itself: true,
+    image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/4/000/4058.png'
+  },
+  {
+    character: 'Gol D. Roger',
+    alias: ['gol d roger', 'roger'],
+    id: '4151',
+    pullable: true,
+    attribute: 'DEX',
+    emoji: '<:1000051517:1506035162448662689>',
+    title: 'King of the Pirates - the Man who Achieved it All',
+    faculty: 'Roger Pirates',
+    rank: 'SS',
+    power: 36,
+    health: 64,
+    speed: 16,
+    attack_min: 14,
+    attack_max: 18,
+    special_attack: {
+      name: 'God of Fire Ace',
+      min_atk: 32,
+      max_atk: 44,
+      gif: null
+    },
+    effect: 'attackup',
+    effectDuration: -1,
+    itself: true,
+    image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/4/100/4151.png'
+  },
+  {
+    character: 'Gol D. Roger',
+    alias: ['gol d roger', 'roger'],
+    id: '4387',
+    pullable: true,
+    attribute: 'INT',
+    emoji: '<:1000051518:1506036346836353145>',
+    title: 'Roger & Rayleigh & Gaban - Stepping onto God Valley',
+    faculty: 'Roger Pirates',
+    rank: 'SS',
+    power: 40,
+    health: 68,
+    speed: 16,
+    attack_min: 30,
+    attack_max: 54,
+    count: 3,
+    special_attack: {
+      name: 'God of Fire Ace',
+      min_atk: 36,
+      max_atk: 72,
+      gif: null
+    },
+    effect: 'attackup',
+    effectDuration: -1,
+    itself: true,
+    image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/4/300/4387.png'
+  },
+  {
+    character: 'Gol D. Roger',
+    alias: ['gol d roger', 'roger'],
+    id: '4572',
+    pullable: true,
+    attribute: 'PSY',
+    emoji: '<:1000051519:1506036798571151430>',
+    title: 'Recalling the Promise',
+    faculty: 'Roger Pirates',
+    rank: 'S',
+    power: 24,
+    health: 44,
+    speed: 10,
+    attack_min: 8,
+    attack_max: 12,
+    image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/4/500/4572.png'
+  },
+  {
+    character: 'Gol D. Roger',
+    alias: ['gol d roger', 'roger'],
+    id: '4573',
+    pullable: true,
+    attribute: 'PSY',
+    emoji: '<:1000051520:1506037079090401380>',
+    title: 'The Begging of the Great Age of Pirates',
+    faculty: 'Roger Pirates',
+    rank: 'SS',
+    power: 38,
+    health: 64,
+    speed: 16,
+    attack_min: 14,
+    attack_max: 18,
+    special_attack: {
+      name: 'God of Fire Ace',
+      min_atk: 32,
+      max_atk: 44,
+      gif: null
+    },
+    effect: 'attackup',
+    effectDuration: -1,
+    itself: true,
+    image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/4/500/4573.png'
+  },
+
+  // New cards from user submission: Red-Hair Pirates (continued)
+  {
+    character: 'Shanks',
+    alias: ['shanks', 'red-haired shanks'],
+    id: '076',
+    pullable: true,
+    attribute: 'PSY',
+    emoji: '<:1000051521:1506038074042486995>',
+    faculty: 'Red-Haired Pirates',
+    rank: 'A',
+    power: 17,
+    health: 30,
+    speed: 5,
+    attack_min: 4,
+    attack_max: 6,
+    image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/0/000/0076.png'
+  },
+  {
+    character: 'Shanks',
+    alias: ['shanks', 'red-haired'],
+    id: '077',
+    pullable: true,
+    attribute: 'PSY',
+    emoji: '<:1000051522:1506038356943966218>',
+    faculty: 'Red-Haired Pirates',
+    rank: 'A',
+    power: 17,
+    health: 30,
+    speed: 5,
+    attack_min: 4,
+    attack_max: 6,
+    image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/0/000/0077.png'
   },
   ...require('./morecards').moreCards
 ];

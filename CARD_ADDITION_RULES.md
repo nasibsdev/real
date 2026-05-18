@@ -6,4 +6,11 @@
 
 - Team boost behavior: When a card grants a team boost, that boost only applies to cards in the same user's active team, and only if the boosting card is also present in that team. UI note: render the boost percentage on the team image canvas (small text at the bottom-left), e.g. "20% boost".
 
+- Multi-target rules: `count` / `scount` must only be added when the card input explicitly included a leading target token (see CARD_ADDITION_GUIDE.md). Mapping:
+	- `2` => `count: 2`
+	- `3` => `count: 3`
+	- `-2` => `scount: 2`
+	- `-3` => `scount: 3`
+	Use `scripts/validate-card-counts.js` to check repository-wide conformance.
+
 Note: The repository currently enforces that `boost`/`artifact` cards have `attack_min` and `attack_max` set to `0` at flatten-time. If you want the engine to reflect the "two times worse" rule instead of zeroing attacks, the runtime clamping logic in `data/cards.js` must be adjusted accordingly.
