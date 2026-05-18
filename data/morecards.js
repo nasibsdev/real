@@ -1671,7 +1671,7 @@ exports.moreCards = [
 		image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/0/100/0178.png'
 	},
 	{
-		character: 'Navy',
+		character: 'Navy Halberd Apprentice',
 		alias: ['navy halberd apprentice'],
 		id: '0181',
 		pullable: true,
@@ -1688,7 +1688,7 @@ exports.moreCards = [
 		image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/0/100/0181.png'
 	},
 	{
-		character: 'Navy',
+		character: 'Navy Knuckle Seaman',
 		alias: ['navy knuckle seaman'],
 		id: '0184',
 		pullable: true,
@@ -1705,7 +1705,7 @@ exports.moreCards = [
 		image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/0/100/0184.png'
 	},
 	{
-		character: 'Navy',
+		character: 'Navy Saber Seaman',
 		alias: ['navy saber seaman'],
 		id: '0185',
 		pullable: true,
@@ -1722,7 +1722,7 @@ exports.moreCards = [
 		image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/0/100/0185.png'
 	},
 	{
-		character: 'Navy',
+		character: 'Navy Halberd Seasman',
 		alias: ['navy halberd seaman'],
 		id: '0186',
 		pullable: true,
@@ -1739,7 +1739,7 @@ exports.moreCards = [
 		image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/0/100/0186.png'
 	},
 	{
-		character: 'Navy',
+		character: 'Navy Pistol Seasman',
 		alias: ['navy pistol seaman'],
 		id: '0187',
 		pullable: true,
@@ -1756,7 +1756,7 @@ exports.moreCards = [
 		image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/0/100/0187.png'
 	},
 	{
-		character: 'Navy',
+		character: 'Navy Canoneer seasman',
 		alias: ['navy cannoneer seaman'],
 		id: '0188',
 		pullable: true,
