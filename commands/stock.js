@@ -262,40 +262,45 @@ module.exports = {
     const embed = buildStockEmbed(updatedStock, countdown, resetTimestamp, !!attachment);
     const row = buildStockRow(updatedStock);
 
-    // Try to edit the original message (safer than interaction.update for long operations)
+    // Try to edit the original message using the bot token (safer than
+    // relying on the interaction token which can expire when uploading files).
     try {
-      if (interaction.message && typeof interaction.message.edit === 'function') {
-        if (attachment) {
-          await interaction.message.edit({ content: 'here is the current pack stock!', embeds: [embed], components: [row], files: [attachment] });
-        } else {
-          await interaction.message.edit({ content: 'here is the current pack stock!', embeds: [embed], components: [row] });
-        }
-      } else if (interaction.channel && interaction.message && interaction.message.id) {
+      let edited = false;
+
+      // Prefer fetching the message via the channel and editing that instance
+      // (this uses the bot token and is resilient to interaction token expiry).
+      if (interaction.channel && interaction.message && interaction.message.id) {
         const msg = await interaction.channel.messages.fetch(interaction.message.id).catch(() => null);
         if (msg && typeof msg.edit === 'function') {
-          if (attachment) {
-            await msg.edit({ content: 'here is the current pack stock!', embeds: [embed], components: [row], files: [attachment] });
-          } else {
-            await msg.edit({ content: 'here is the current pack stock!', embeds: [embed], components: [row] });
-          }
-        } else {
-          // fallback: send a normal channel message
-          if (attachment) {
-            await interaction.channel.send({ content: 'here is the current pack stock!', embeds: [embed], components: [row], files: [attachment] });
-          } else {
-            await interaction.channel.send({ content: 'here is the current pack stock!', embeds: [embed], components: [row] });
-          }
+          if (attachment) await msg.edit({ content: 'here is the current pack stock!', embeds: [embed], components: [row], files: [attachment] });
+          else await msg.edit({ content: 'here is the current pack stock!', embeds: [embed], components: [row] });
+          edited = true;
         }
-      } else {
+      }
+
+      // Fallback to the cached interaction.message.edit (may use webhook token).
+      if (!edited && interaction.message && typeof interaction.message.edit === 'function') {
+        if (attachment) await interaction.message.edit({ content: 'here is the current pack stock!', embeds: [embed], components: [row], files: [attachment] });
+        else await interaction.message.edit({ content: 'here is the current pack stock!', embeds: [embed], components: [row] });
+        edited = true;
+      }
+
+      // Final fallback: send a fresh channel message
+      if (!edited) {
         if (attachment) await interaction.channel.send({ content: 'here is the current pack stock!', embeds: [embed], components: [row], files: [attachment] });
         else await interaction.channel.send({ content: 'here is the current pack stock!', embeds: [embed], components: [row] });
       }
     } catch (err) {
       console.error('[stock] Failed to update stock message after purchase:', err && err.message ? err.message : err);
-      try { await interaction.followUp({ content: `You bought 1x ${pack.icon} **${pack.name}** for **${price} gems**!`, ephemeral: true }); } catch(e){}
+      try { await interaction.followUp({ content: `You bought 1x ${pack.icon} **${pack.name}** for **${price} gems**!`, ephemeral: true }); } catch(e){ console.warn('[stock] followUp after failed edit also failed:', e && e.message ? e.message : e); }
       return;
     }
 
-    return interaction.followUp({ content: `You bought 1x ${pack.icon} **${pack.name}** for **${price} gems**!`, ephemeral: true });
+    try {
+      await interaction.followUp({ content: `You bought 1x ${pack.icon} **${pack.name}** for **${price} gems**!`, ephemeral: true });
+    } catch (err) {
+      console.warn('[stock] followUp failed:', err && err.message ? err.message : err);
+    }
+    return;
   }
 };
