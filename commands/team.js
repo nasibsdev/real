@@ -213,10 +213,9 @@ module.exports = {
 
       try { await interaction.followUp({ content: 'Applying auto-team...', ephemeral: true }); } catch (e) {}
 
-      // Run the selection, image generation and message edit asynchronously
+      // Run the selection asynchronously but avoid heavy image generation here
       (async () => {
         try {
-          const { cards } = require('../data/cards');
           const { selectAutoTeam } = require('../utils/autoteam');
           const selectedIds = selectAutoTeam(user, 3);
           if (!selectedIds || selectedIds.length === 0) {
@@ -228,24 +227,18 @@ module.exports = {
 
           try {
             const { checkAndAwardAll } = require('../utils/achievements');
-            await checkAndAwardAll(user, interaction.client, { event: 'team' });
+            // fire-and-forget achievement checks
+            checkAndAwardAll(user, interaction.client, { event: 'team' }).catch(err => console.error('Error checking achievements after autoteam', err));
           } catch (err) {
-            console.error('Error checking achievements after autoteam', err);
+            console.error('Error initiating achievement check after autoteam', err);
           }
 
-          const cardDefs = user.team.map(id => cards.find(c => c.id === id)).filter(Boolean);
-          const totalPower = cardDefs.reduce((sum, card) => {
-            const entry = user.ownedCards.find(e => e.cardId === card.id);
-            const stats = getCardFinalStats(card, entry?.level || 1, user);
-            return sum + (stats.scaled.power || 0);
-          }, 0);
-          const imageBuffer = await generateTeamImage({
-            username: interaction.user.username,
-            totalPower,
-            cards: cardDefs,
-            backgroundUrl: user.teamBackgroundUrl
+          // Update the existing message quickly with a text summary (no image)
+          const { cards } = require('../data/cards');
+          const lines = user.team.map(id => {
+            const def = cards.find(c => c.id === id);
+            return def ? `${def.emoji || ''} ${def.character} (${def.rank})` : id;
           });
-          const attachment = new AttachmentBuilder(imageBuffer, { name: 'team.png' });
           const row = new ActionRowBuilder()
             .addComponents(
               new ButtonBuilder()
@@ -254,7 +247,6 @@ module.exports = {
                 .setStyle(ButtonStyle.Secondary)
                 .setEmoji('<:autoteam:1489632891188019342>')
             );
-
           row.addComponents(
             new ButtonBuilder()
               .setCustomId('team_ids')
@@ -264,15 +256,15 @@ module.exports = {
 
           try {
             if (interaction.message && interaction.message.edit) {
-              await interaction.message.edit({ content: `${interaction.user.username}'s team`, files: [attachment], components: [row] });
+              await interaction.message.edit({ content: `${interaction.user.username}'s team\n\n${lines.join('\n')}`, components: [row] });
             } else {
-              await interaction.update({ content: `${interaction.user.username}'s team`, files: [attachment], components: [row] });
+              await interaction.update({ content: `${interaction.user.username}'s team\n\n${lines.join('\n')}`, components: [row] });
             }
             try { await interaction.followUp({ content: 'Your team has been set to the strongest possible cards!', ephemeral: true }); } catch (e) {}
           } catch (err) {
             console.error('Autoteam update failed, sending fallback message', err);
             try {
-              await interaction.channel.send({ content: `${interaction.user.username}'s team`, files: [attachment], components: [row] });
+              await interaction.channel.send({ content: `${interaction.user.username}'s team\n\n${lines.join('\n')}`, components: [row] });
             } catch (e) {
               console.error('Fallback channel send failed', e);
             }

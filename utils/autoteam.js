@@ -28,14 +28,29 @@ function selectAutoTeam(user, count = 3) {
   const eligibles = ownedDefs.filter(c => !c.artifact && !c.ship && !c.boost && !(c.type && String(c.type).toLowerCase() === 'boost'));
   if (eligibles.length === 0) return [];
 
-  // Compute a score for each eligible card once
-  const scored = eligibles.map(def => {
-    const entry = ownedMap.get(def.id) || { level: 1 };
-    const stats = getCardFinalStats(def, entry.level || 1, user);
-    // Primary metric: scaled power. Other heuristics could be added later.
-    const score = (stats && stats.scaled && typeof stats.scaled.power === 'number') ? stats.scaled.power : 0;
-    return { id: def.id, score };
-  });
+  // If there are a lot of eligibles, use a fast heuristic to avoid heavy
+  // getCardFinalStats computations which can be CPU/network intensive
+  const HEURISTIC_THRESHOLD = 200;
+  let scored;
+  if (eligibles.length > HEURISTIC_THRESHOLD) {
+    scored = eligibles.map(def => {
+      const entry = ownedMap.get(def.id) || { level: 1 };
+      // Heuristic score: rank weight * level multiplier * base power
+      const rankWeight = { D: 1, C: 2, B: 3, A: 4, S: 6, SS: 8, UR: 10 }[def.rank] || 1;
+      const lvl = Math.max(1, entry.level || 1);
+      const score = (rankWeight * (1 + lvl / 100) * (def.power || 1));
+      return { id: def.id, score };
+    });
+  } else {
+    // Compute an accurate score for each eligible card once
+    scored = eligibles.map(def => {
+      const entry = ownedMap.get(def.id) || { level: 1 };
+      const stats = getCardFinalStats(def, entry.level || 1, user);
+      // Primary metric: scaled power. Other heuristics could be added later.
+      const score = (stats && stats.scaled && typeof stats.scaled.power === 'number') ? stats.scaled.power : 0;
+      return { id: def.id, score };
+    });
+  }
 
   // Sort by score descending and take top `count` ids
   scored.sort((a, b) => b.score - a.score);

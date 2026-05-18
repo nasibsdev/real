@@ -191,24 +191,14 @@ async function _spawnDrop(channelId) {
     let msg;
 
     if (imageUrl) {
-      // Check if URL is from catbox.moe or wikia - send as embed since they don't work as attachments
-      if (imageUrl.includes('catbox.moe') || imageUrl.includes('wikia.nocookie.net')) {
-        const dropEmbed = new EmbedBuilder()
-          .setDescription(dropContent)
-          .setImage(imageUrl);
-        msg = await channel.send({ embeds: [dropEmbed], components: [claimButton] });
+      // Prefer plain message with an attachment where possible. If attachment
+      // creation fails (e.g., remote host restrictions), fall back to including
+      // the raw URL in the message content so Discord can unfurl it.
+      const imageAttachment = await createAttachmentFromUrl(imageUrl).catch(() => null);
+      if (imageAttachment) {
+        msg = await channel.send({ content: dropContent, components: [claimButton], files: [imageAttachment] });
       } else {
-        // For other URLs, send as attachment
-        const imageAttachment = await createAttachmentFromUrl(imageUrl);
-        if (imageAttachment) {
-          msg = await channel.send({ content: dropContent, components: [claimButton], files: [imageAttachment] });
-        } else {
-          // Fallback to embed if attachment creation fails
-          const dropEmbed = new EmbedBuilder()
-            .setDescription(dropContent)
-            .setImage(imageUrl || null);
-          msg = await channel.send({ embeds: [dropEmbed], components: [claimButton] });
-        }
+        msg = await channel.send({ content: `${dropContent}\n${imageUrl}`, components: [claimButton] });
       }
     } else {
       msg = await channel.send({ content: dropContent, components: [claimButton] });

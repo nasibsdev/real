@@ -69,16 +69,28 @@ function sortAndFilter(items, mode, user) {
 function sortedOwnedCards(user) {
   if (!user || !Array.isArray(user.ownedCards) || !user.ownedCards.length) return [];
 
+  // Faster sort: avoid computing full final stats for every card which can
+  // be expensive for large collections. Use rank, level and base power as
+  // a heuristic to order cards quickly; exact stats will be computed lazily
+  // when rendering individual cards.
   const cardsWithDef = user.ownedCards
     .map(entry => {
       const cardDef = getCardById(entry.cardId);
       if (!cardDef) return null;
-      const finalStats = getCardFinalStats(cardDef, entry.level || 1, user);
-      return { card: cardDef, entry, scaledPower: finalStats.scaled.power };
+      const rankWeight = { D: 1, C: 2, B: 3, A: 4, S: 5, SS: 6, UR: 7 }[cardDef.rank] || 0;
+      return { card: cardDef, entry, rankWeight, level: entry.level || 1, basePower: cardDef.power || 0 };
     })
     .filter(Boolean);
 
-  return sortAndFilter(cardsWithDef, 'strongest-weakest');
+  // Sort using heuristic: rank desc, level desc, basePower desc, name
+  cardsWithDef.sort((a, b) => {
+    if (a.rankWeight !== b.rankWeight) return b.rankWeight - a.rankWeight;
+    if (a.level !== b.level) return b.level - a.level;
+    if (a.basePower !== b.basePower) return b.basePower - a.basePower;
+    return a.card.character.localeCompare(b.card.character);
+  });
+
+  return sortAndFilter(cardsWithDef.map(c => ({ card: c.card, entry: c.entry })), 'strongest-weakest');
 }
 
 function makeNavRow(userId, index, total, cardDef, owned) {
