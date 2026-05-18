@@ -24,11 +24,11 @@ function randomChestId() {
 function startVoteWebhook() {
   const app = express();
 
-  // Use json() for most routes, raw() only for the topgg webhook so we can log the raw body
-  app.use('/webhook/topgg', express.raw({ type: '*/*' }));
+  // Use json() for most routes; raw() for webhook endpoints so we can log the raw body
+  app.use(['/webhook/topgg', '/dblwebhook'], express.raw({ type: '*/*' }));
 
-  app.post('/webhook/topgg', async (req, res) => {
-    console.log('[vote-webhook] Incoming POST /webhook/topgg');
+  const handleVotePost = async (req, res) => {
+    console.log(`[vote-webhook] Incoming POST ${req.path}`);
 
     try {
       // Auth check - accept plain token or common prefixes like "Bearer <token>" or "Token <token>"
@@ -171,10 +171,17 @@ function startVoteWebhook() {
       console.error('[vote-webhook] UNCAUGHT ERROR processing vote:', err);
       if (!res.headersSent) res.status(500).send('Internal Server Error');
     }
-  });
+  };
+
+  app.post('/webhook/topgg', handleVotePost);
+  app.post('/dblwebhook', handleVotePost);
 
   app.get('/webhook/topgg', (req, res) => {
-    res.send('Vote webhook is active. Set this URL in top.gg: POST /webhook/topgg');
+    res.send('Vote webhook is active. Set this URL in top.gg: POST /webhook/topgg or /dblwebhook');
+  });
+
+  app.get('/dblwebhook', (req, res) => {
+    res.send('Vote webhook is active at /dblwebhook. Set this URL in top.gg dashboard if desired.');
   });
 
   // Diagnostic endpoint — visit /webhook-status to confirm the server is reachable

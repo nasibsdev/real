@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const { getBotConfig, setBotConfig, deleteBotConfig } = require('../models/BotConfig');
 const { ActionRowBuilder, AttachmentBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
+const path = require('path');
 const { simulatePull, isArtifactCard, formatCardId, applyXpToEquippedArtifact } = require('../utils/cards');
 const { cards } = require('../data/cards');
 
@@ -77,6 +78,7 @@ async function createAttachmentFromUrl(url) {
     }
     return new AttachmentBuilder(buffer, { name: fileName });
   } catch (err) {
+    console.error('[drops] createAttachmentFromUrl error for', url, err && err.message ? err.message : err);
     return null;
   }
 }
