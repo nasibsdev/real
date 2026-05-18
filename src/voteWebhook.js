@@ -31,17 +31,21 @@ function startVoteWebhook() {
     console.log('[vote-webhook] Incoming POST /webhook/topgg');
 
     try {
-      // Auth check
-      const auth = req.headers['authorization'];
-      const expectedAuth = process.env.TOPGG_WEBHOOK_AUTH;
+      // Auth check - accept plain token or common prefixes like "Bearer <token>" or "Token <token>"
+      let auth = req.headers['authorization'] || req.headers['Authorization'] || '';
+      auth = typeof auth === 'string' ? auth.trim() : '';
+      let provided = auth;
+      if (provided.toLowerCase().startsWith('bearer ')) provided = provided.slice(7).trim();
+      if (provided.toLowerCase().startsWith('token ')) provided = provided.slice(6).trim();
 
+      const expectedAuth = (process.env.TOPGG_WEBHOOK_AUTH || '').trim();
       if (!expectedAuth) {
         console.error('[vote-webhook] ERROR: TOPGG_WEBHOOK_AUTH secret is not set!');
         return res.status(500).send('Server misconfigured');
       }
 
-      if (auth !== expectedAuth) {
-        console.warn(`[vote-webhook] Unauthorized — received auth: "${auth ? auth.slice(0, 8) + '...' : 'none'}"`);
+      if (!provided || provided !== expectedAuth) {
+        console.warn(`[vote-webhook] Unauthorized — received auth: "${provided ? provided.slice(0, 8) + '...' : 'none'}"`);
         return res.status(401).send('Unauthorized');
       }
 
@@ -56,7 +60,7 @@ function startVoteWebhook() {
         return res.status(400).send('Bad Request');
       }
 
-      const voterId = payload.user;
+      const voterId = payload.user ? String(payload.user) : null;
       const type = payload.type;
       console.log(`[vote-webhook] Parsed payload — type: ${type}, user: ${voterId}, isWeekend: ${payload.isWeekend}`);
 
@@ -122,7 +126,7 @@ function startVoteWebhook() {
       }
 
       await user.save();
-      console.log(`[vote-webhook] ✅ Rewards saved for user ${voterId} — streak: ${user.voteStreak}${earnedGodToken ? ', +God Token' : ''}`);
+      console.log(`[vote-webhook] 'Rewards saved for user ${voterId} — streak: ${user.voteStreak}${earnedGodToken ? ', +God Token' : ''}`);
 
       // DM the voter
       if (_client) {

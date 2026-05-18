@@ -22,7 +22,9 @@ const COMMAND_CATEGORIES = {
       { name: 'open <pack>', desc: 'Open a chest or a pack' },
       { name: 'equip <artifact> <card>', desc: 'Equip an artifact to a card' },
       { name: 'unequip <artifact>', desc: 'Unequip an artifact from its card' },
-      { name: 'reset', desc: 'Reset your pulls' }
+      { name: 'reset', desc: 'Reset your pulls' },
+      { name: 'market', desc: 'View the card market' },
+      { name: 'marketlistings', desc: 'View your market listings' }
     ]
   },
   team: {

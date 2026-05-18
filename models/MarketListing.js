@@ -11,7 +11,11 @@ const MarketListingSchema = new Schema({
   cardAttribute: { type: String, default: '' },
   price: { type: Number, required: true },
   level: { type: Number, default: 1 },
+  xp: { type: Number, default: 0 },
+  equippedTo: { type: String, default: null },
   starLevel: { type: Number, default: 0 },
+  messageId: { type: String, default: null },
+  channelId: { type: String, default: null },
   createdAt: { type: Date, default: Date.now },
   expiresAt: { type: Date, required: true },
 });

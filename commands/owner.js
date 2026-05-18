@@ -492,7 +492,7 @@ async function execute({ message, args }) {
     
     try {
       await dropsModule.startDropTimer(message.client, channelId, threshold);
-      return message.reply(`✅ Card drops enabled in <#${channelId}> (threshold: ${threshold})!`);
+      return message.reply(`Card drops enabled in <#${channelId}> (threshold: ${threshold})!`);
     } catch (err) {
       console.error('Error setting up drops:', err);
       return message.reply('Failed to set up drops. Make sure the bot can access that channel and that it is a text channel.');
@@ -509,6 +509,25 @@ async function execute({ message, args }) {
     const { setBotConfig: _setBC } = require('../models/BotConfig');
     await _setBC('resetsChannel', channelId);
     return message.reply(`Reset notifications will be sent to <#${channelId}>`);
+  }
+
+  if (sub === 'marketchannel') {
+    const channelMention = args[1];
+    if (!channelMention) return message.reply('Usage: op owner marketchannel <#channel>');
+    const channelMatch = channelMention.match(/<#(\d+)>/);
+    if (!channelMatch) return message.reply('Invalid channel format. Use: op owner marketchannel <#channel>');
+    const channelId = channelMatch[1];
+    const { setBotConfig: _setBC } = require('../models/BotConfig');
+    await _setBC('marketChannel', channelId);
+    return message.reply(`Market listings will be posted to <#${channelId}>`);
+  }
+
+  if (sub === 'unsetmarketchannel') {
+    const { getBotConfig: _getBC, deleteBotConfig: _deleteBC } = require('../models/BotConfig');
+    const existing = await _getBC('marketChannel');
+    if (!existing) return message.reply('No market channel is currently configured.');
+    await _deleteBC('marketChannel');
+    return message.reply(`Market listing channel has been disabled (was <#${existing}>).`);
   }
 
   if (sub === 'setsail') {
@@ -573,7 +592,7 @@ async function execute({ message, args }) {
     const dropsModule = require('./drops');
     try {
       await dropsModule.spawnDrops(message.client, channelId, amount);
-      return message.reply(`✅ Dropped ${amount} cards in <#${channelId}>.`);
+      return message.reply(`Dropped ${amount} cards in <#${channelId}>.`);
     } catch (err) {
       console.error('Error during dropparty:', err);
       return message.reply('Failed to perform dropparty.');
@@ -589,7 +608,7 @@ async function execute({ message, args }) {
     const dropsModule = require('./drops');
     try {
       dropsModule.stopDropTimer(channelId);
-      return message.reply(`✅ Card drops disabled in <#${channelId}>.`);
+      return message.reply(`Card drops disabled in <#${channelId}>.`);
     } catch (err) {
       console.error('Error disabling drops for channel:', err);
       return message.reply('Failed to disable drops for that channel.');

@@ -46,6 +46,7 @@ const { startVoteWebhook } = require('./src/voteWebhook');
 const marketCmd = require('./commands/market');
 const marketListCmd = require('./commands/marketlist');
 const marketListingsCmd = require('./commands/marketlistings');
+const marketBuyCmd = require('./commands/marketbuy');
 const User = require('./models/User');
 
 async function main() {
@@ -531,6 +532,7 @@ async function main() {
       if (cmd === 'badges') return await require('./commands/badges').execute({ message, args });
       if (cmd === 'market') return await marketCmd.execute({ message, args });
       if (cmd === 'marketlist') return await marketListCmd.execute({ message, args });
+      if (cmd === 'marketbuy') return await marketBuyCmd.execute({ message, args });
       if (cmd === 'marketlistings' || cmd === 'mylistings') return await marketListingsCmd.execute({ message, args });
       return; // unknown command - don't respond
     } catch (err) {

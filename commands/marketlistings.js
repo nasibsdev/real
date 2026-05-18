@@ -74,7 +74,7 @@ async function execute({ message, interaction, args }) {
     const expires = timeLeft(listing.expiresAt);
 
     embed.addFields({
-      name: `${rankEmoji} ${cardEmoji}${listing.cardName}${starStr} (Lvl. ${listing.level})`,
+      name: `${cardEmoji}${listing.cardName}${starStr} (Lvl. ${listing.level})`,
       value: `\`ID: ${formatCardId(listing.cardId)}\` | ${priceStr} ${BELI_EMOJI} | Expires: ${expires}`,
       inline: false,
     });
@@ -111,11 +111,24 @@ async function handleButton(interaction) {
     return interaction.reply({ content: 'This is not your listing.', ephemeral: true });
   }
 
+  // Return the card to the seller since it was escrowed at listing time
+  try {
+    const seller = await User.findOne({ userId: ownerId });
+    if (seller) {
+      seller.ownedCards = seller.ownedCards || [];
+      // avoid duplicates: only add if seller does not already have this card
+      if (!seller.ownedCards.some(e => e.cardId === listing.cardId)) {
+        seller.ownedCards.push({ cardId: listing.cardId, level: listing.level || 1, xp: listing.xp || 0, equippedTo: listing.equippedTo || null, starLevel: listing.starLevel || 0 });
+        await seller.save().catch(() => {});
+      }
+    }
+  } catch (e) {}
+
   await MarketListing.findByIdAndDelete(listingId);
 
   const BELI_EMOJI_LOCAL = '<:beri:1490738445319016651>';
   await interaction.reply({
-    content: `✅ Cancelled listing for **${listing.cardName}** (was ${formatPrice(listing.price)} ${BELI_EMOJI_LOCAL}).`,
+    content: `Cancelled listing for **${listing.cardName}** (was ${formatPrice(listing.price)} ${BELI_EMOJI_LOCAL}).`,
     ephemeral: true,
   });
 

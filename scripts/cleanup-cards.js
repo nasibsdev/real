@@ -167,5 +167,5 @@ if (nameCleanCount > 0) {
   console.log('\nNo character name suffixes to clean up.');
 }
 
-console.log('\n✅ Card cleanup complete!');
+console.log('\nCard cleanup complete!');
 console.log(`Summary: ${c1 + c2} title(s) cleared, ${nameCleanCount} name suffix(es) removed.`);

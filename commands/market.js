@@ -99,13 +99,12 @@ function buildMarketEmbed(listings, session, total) {
   }
 
   for (const listing of listings) {
-    const rankEmoji = RANK_EMOJIS[listing.cardRank] || '';
     const cardEmoji = listing.cardEmoji ? listing.cardEmoji + ' ' : '';
     const starStr = listing.starLevel > 0 ? ` ${'⭐'.repeat(listing.starLevel)}` : '';
     const priceStr = formatPrice(listing.price);
 
     embed.addFields({
-      name: `${rankEmoji} ${cardEmoji}${listing.cardName}${starStr} (Lvl. ${listing.level})`,
+      name: `${cardEmoji}${listing.cardName}${starStr} (Lvl. ${listing.level})`,
       value: `\`ID: ${formatCardId(listing.cardId)}\` | ${priceStr} ${BELI_EMOJI}`,
       inline: false,
     });
@@ -365,14 +364,21 @@ async function handleBuy(interaction, userId, session, listingId) {
     return renderMarket(interaction, userId, session, true);
   }
 
+  // Support escrowed listings: seller may have had the card removed when listing.
   const sellerCardIdx = seller.ownedCards.findIndex(e => e.cardId === listing.cardId);
-  if (sellerCardIdx === -1) {
-    await MarketListing.findByIdAndDelete(listingId);
-    await interaction.followUp({ content: 'The seller no longer has this card. Listing removed.', ephemeral: true });
-    return renderMarket(interaction, userId, session, true);
+  let cardEntry = null;
+  if (sellerCardIdx !== -1) {
+    cardEntry = seller.ownedCards.splice(sellerCardIdx, 1)[0];
+  } else {
+    cardEntry = {
+      cardId: listing.cardId,
+      level: listing.level || 1,
+      xp: listing.xp || 0,
+      equippedTo: listing.equippedTo || null,
+      starLevel: listing.starLevel || 0,
+    };
   }
 
-  const cardEntry = seller.ownedCards.splice(sellerCardIdx, 1)[0];
   buyer.ownedCards.push(cardEntry);
   buyer.balance = (buyer.balance || 0) - listing.price;
   seller.balance = (seller.balance || 0) + listing.price;
@@ -391,7 +397,7 @@ async function handleBuy(interaction, userId, session, listingId) {
   } catch {}
 
   await interaction.followUp({
-    content: `✅ You purchased **${listing.cardName}** for **${formatPrice(listing.price)}** ${BELI_EMOJI}!`,
+    content: `You purchased **${listing.cardName}** for **${formatPrice(listing.price)}** ${BELI_EMOJI}!`,
     ephemeral: true,
   });
 
