@@ -48,6 +48,7 @@ const marketListCmd = require('./commands/marketlist');
 const marketListingsCmd = require('./commands/marketlistings');
 const marketBuyCmd = require('./commands/marketbuy');
 const User = require('./models/User');
+const { setBotConfig } = require('./models/BotConfig');
 
 async function main() {
   if (!process.env.DISCORD_TOKEN && !process.env.TOKEN) return console.error('Please set DISCORD_TOKEN or TOKEN in .env');
@@ -109,6 +110,39 @@ async function main() {
   dropsModule.initializeDrops(null); // Will be set by client once ready
 
   const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.DirectMessages], partials: [] });
+
+  // expose safe interaction helpers globally so command modules can call them
+  try {
+    const safeInteraction = require('./utils/safeInteraction');
+    global.safeInteraction = safeInteraction;
+    global.safeUpdate = safeInteraction.safeUpdate;
+    global.safeReply = safeInteraction.safeReply;
+    global.safeDefer = safeInteraction.safeDefer;
+  } catch (e) {
+    console.warn('Failed to initialize safeInteraction helpers', e);
+  }
+
+  // Global process-level handlers to avoid the bot exiting on unexpected errors
+  process.on('unhandledRejection', (reason, p) => {
+    console.error('Unhandled Rejection at:', p, 'reason:', reason);
+  });
+  process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception thrown:', err);
+  });
+  process.on('uncaughtExceptionMonitor', (err) => {
+    console.error('Uncaught Exception (monitor):', err);
+  });
+
+  // Handle Discord client-level errors so they don't crash the process
+  client.on('error', (err) => {
+    console.error('Discord client error', err);
+  });
+  client.on('shardError', (err) => {
+    console.error('Discord shard error', err);
+  });
+  client.on('warn', (info) => {
+    console.warn('Discord client warning', info);
+  });
 
   client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}`);
@@ -176,6 +210,8 @@ async function main() {
 
   client.on('interactionCreate', async (interaction) => {
     try {
+      // track guild usage for owner guildlist filtering (best-effort, non-blocking)
+      try { if (interaction && interaction.guildId) setBotConfig && setBotConfig(`guildUsed:${interaction.guildId}`, Date.now()); } catch (e) {}
       if (interaction.isButton()) {
         // guard against multiple button presses while we are handling one
         if (processingInteractions.has(interaction.user.id)) {
@@ -313,7 +349,9 @@ async function main() {
               .setStyle(nextAvailable ? ButtonStyle.Primary : ButtonStyle.Secondary)
               .setDisabled(!nextAvailable)
           );
-          return interaction.update({ embeds: [embed], components: [row] });
+          // use safeUpdate to avoid throwing on expired/unknown interactions
+          if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { embeds: [embed], components: [row] });
+          return global.safeUpdate(interaction, { embeds: [embed], components: [row] });
         }
 
         // handle reset token confirmation
@@ -435,8 +473,15 @@ async function main() {
       }
     } catch (err) {
       console.error(err);
-      if (interaction.replied || interaction.deferred) interaction.followUp({ content: 'Error running command', ephemeral: true });
-      else interaction.reply({ content: 'Error processing interaction', ephemeral: true });
+      try {
+        if (interaction && (interaction.replied || interaction.deferred)) {
+          await interaction.followUp({ content: 'Error running command', ephemeral: true }).catch(() => {});
+        } else if (interaction) {
+          await interaction.reply({ content: 'Error processing interaction', ephemeral: true }).catch(() => {});
+        }
+      } catch (replyErr) {
+        console.error('Failed to send error response to interaction:', replyErr);
+      }
     } finally {
       // release processing lock if we acquired one
       if (interaction.isButton()) processingInteractions.delete(interaction.user.id);

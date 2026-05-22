@@ -330,7 +330,10 @@ module.exports = {
         .setDisabled(newPage === totalPages - 1)
     );
 
-    await interaction.update({ embeds: [embed], components: [row] });
+    if (global && typeof global.safeUpdate === 'function') {
+      return global.safeUpdate(interaction, { embeds: [embed], components: [row] });
+    }
+    return global.safeUpdate(interaction, { embeds: [embed], components: [row] });
   }
 };
 

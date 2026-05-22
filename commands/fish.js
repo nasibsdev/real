@@ -298,7 +298,8 @@ module.exports = {
     }
 
     if (outcome === 'The fish got away!') {
-      return interaction.update({ embeds: [embed], components: [] });
+      if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { embeds: [embed], components: [] });
+      return global.safeUpdate(interaction, { embeds: [embed], components: [] });
     }
 
     // Determine number of items based on rod and catch quality
@@ -434,6 +435,7 @@ module.exports = {
     embed.addFields({ name: 'Loot', value: lootLines.join('\n') });
     await user.save();
 
-    return interaction.update({ embeds: [embed], components: [] });
+    if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { embeds: [embed], components: [] });
+    return global.safeUpdate(interaction, { embeds: [embed], components: [] });
   }
 };

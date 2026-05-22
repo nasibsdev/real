@@ -248,7 +248,8 @@ async function renderCard(interaction, session, index) {
   const rowSort = makeSortButton(interaction.user.id);
   const components = [rowNav, rowSort];
 
-  return interaction.update({ embeds: [embed], components });
+  if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { embeds: [embed], components });
+  return global.safeUpdate(interaction, { embeds: [embed], components });
 }
 
 module.exports = {
@@ -295,7 +296,8 @@ module.exports = {
     }
 
     if (action === 'collection_sort') {
-      return interaction.update({ content: 'Choose sort/filter option:', components: [makeSortMenu(uid)] });
+      if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { content: 'Choose sort/filter option:', components: [makeSortMenu(uid)] });
+      return global.safeUpdate(interaction, { content: 'Choose sort/filter option:', components: [makeSortMenu(uid)] });
     }
 
     if (action === 'collection_sort_select') {
@@ -306,7 +308,8 @@ module.exports = {
       session.mode = mode;
 
       if (!filtered.length) {
-        return interaction.update({ content: 'No cards match that filter.', embeds: [], components: [] });
+        if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { content: 'No cards match that filter.', embeds: [], components: [] });
+        return global.safeUpdate(interaction, { content: 'No cards match that filter.', embeds: [], components: [] });
       }
 
       return renderCard(interaction, session, 0);
@@ -318,6 +321,7 @@ module.exports = {
         return interaction.reply({ content: 'No card found at current index.', ephemeral: true });
       }
       const embed = buildCollectionBoostEmbed(item.card, item.entry, session.cachedUser);
+      if (global && typeof global.safeReply === 'function') return global.safeReply(interaction, { embeds: [embed], ephemeral: true });
       return interaction.reply({ embeds: [embed], ephemeral: true });
     }
 

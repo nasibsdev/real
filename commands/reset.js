@@ -195,9 +195,11 @@ module.exports = {
       user.lastReset = new Date();
       await user.save();
 
-      return interaction.update({ content: `Successfully used a **Reset Token**! Pull count has been reset. You gained **1 Gem**.`, components: [] });
+      if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { content: `Successfully used a **Reset Token**! Pull count has been reset. You gained **1 Gem**.`, components: [] });
+      return global.safeUpdate(interaction, { content: `Successfully used a **Reset Token**! Pull count has been reset. You gained **1 Gem**.`, components: [] });
     }
 
-    return interaction.update({ content: 'Reset token use cancelled.', components: [] });
+    if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { content: 'Reset token use cancelled.', components: [] });
+    return global.safeUpdate(interaction, { content: 'Reset token use cancelled.', components: [] });
   }
 };

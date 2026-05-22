@@ -11,6 +11,7 @@ const {
 const User = require('../models/User');
 const MarketListing = require('../models/MarketListing');
 const { searchCards, getCardById, formatCardId } = require('../utils/cards');
+const { getMaxStarForRank } = require('../utils/starLevel');
 
 const PAGE_SIZE = 10;
 const BELI_EMOJI = '<:beri:1490738445319016651>';
@@ -90,7 +91,7 @@ function buildMarketEmbed(listings, session, total) {
   if (session.isSearch && session.searchQuery) filterParts.push(`Search: "${session.searchQuery}"`);
   if (session.filterRank) filterParts.push(`Rank: ${session.filterRank}`);
   if (session.filterAttr) filterParts.push(`Attribute: ${session.filterAttr}`);
-  if (session.filterStar !== null && session.filterStar !== undefined) filterParts.push(`Stars: ${'⭐'.repeat(session.filterStar)}`);
+  if (session.filterStar !== null && session.filterStar !== undefined) filterParts.push(`Stars: ${session.filterStar === 0 ? 'None' : session.filterStar}`);
   if (filterParts.length) embed.setDescription(`*Filters: ${filterParts.join(' | ')}*`);
 
   if (!listings.length) {
@@ -100,7 +101,15 @@ function buildMarketEmbed(listings, session, total) {
 
   for (const listing of listings) {
     const cardEmoji = listing.cardEmoji ? listing.cardEmoji + ' ' : '';
-    const starStr = listing.starLevel > 0 ? ` ${'⭐'.repeat(listing.starLevel)}` : '';
+    let starStr = '';
+    if (typeof listing.starLevel === 'number' && listing.starLevel > 0) {
+      const maxStar = getMaxStarForRank(listing.cardRank || 'D');
+      if (listing.starLevel >= maxStar) {
+        starStr = ' <:MAXstarlevel:1505618736516825180>';
+      } else {
+        starStr = ` (${listing.starLevel} star${listing.starLevel !== 1 ? 's' : ''})`;
+      }
+    }
     const priceStr = formatPrice(listing.price);
 
     embed.addFields({
@@ -152,19 +161,24 @@ function buildMarketComponents(listings, session, total, userId) {
       .setPlaceholder('Filter by star level')
       .addOptions([
         { label: 'All star levels', value: 'all', default: session.filterStar === null || session.filterStar === undefined },
-        { label: '⭐ 1 star', value: '1', default: session.filterStar === 1 },
-        { label: '⭐⭐ 2 stars', value: '2', default: session.filterStar === 2 },
-        { label: '⭐⭐⭐ 3 stars', value: '3', default: session.filterStar === 3 },
-        { label: '⭐⭐⭐⭐ 4 stars', value: '4', default: session.filterStar === 4 },
-        { label: '⭐⭐⭐⭐⭐ 5 stars', value: '5', default: session.filterStar === 5 },
-        { label: '⭐⭐⭐⭐⭐⭐ 6 stars', value: '6', default: session.filterStar === 6 },
-        { label: '⭐⭐⭐⭐⭐⭐⭐ 7 stars', value: '7', default: session.filterStar === 7 },
+        { label: '1 star', value: '1', default: session.filterStar === 1 },
+        { label: '2 stars', value: '2', default: session.filterStar === 2 },
+        { label: '3 stars', value: '3', default: session.filterStar === 3 },
+        { label: '4 stars', value: '4', default: session.filterStar === 4 },
+        { label: '5 stars', value: '5', default: session.filterStar === 5 },
+        { label: '6 stars', value: '6', default: session.filterStar === 6 },
+        { label: '7 stars', value: '7', default: session.filterStar === 7 },
       ])
   );
 
   const cardOptions = listings.map(listing => {
     const priceStr = formatPrice(listing.price);
-    const starStr = listing.starLevel > 0 ? ` ${'⭐'.repeat(listing.starLevel)}` : '';
+    let starStr = '';
+    if (typeof listing.starLevel === 'number' && listing.starLevel > 0) {
+      const maxStar = getMaxStarForRank(listing.cardRank || 'D');
+      if (listing.starLevel >= maxStar) starStr = ' <:MAXstarlevel:1505618736516825180>';
+      else starStr = ` (${listing.starLevel}★)`;
+    }
     const label = `${listing.cardName}${starStr} (Lvl. ${listing.level}) — ${priceStr} beli`.slice(0, 100);
     const desc = `ID: ${formatCardId(listing.cardId)} | Seller: ${listing.sellerName}`.slice(0, 100);
     const opt = { label, description: desc, value: listing._id.toString() };
@@ -211,13 +225,22 @@ async function renderMarket(target, userId, session, isUpdate = false) {
   const embed = buildMarketEmbed(listings, session, total);
   const components = buildMarketComponents(listings, session, total, userId);
 
-  if (isUpdate) {
-    return target.editReply({ embeds: [embed], components });
+  if (isUpdate && target && typeof target.editReply === 'function') {
+    if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(target, { embeds: [embed], components });
+    try { return target.editReply({ embeds: [embed], components }); } catch (e) {}
   }
-  if (target.update) {
-    return target.update({ embeds: [embed], components });
+  if (target && typeof target.update === 'function') {
+    if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(target, { embeds: [embed], components });
+    try { return target.update({ embeds: [embed], components }); } catch (e) {}
   }
-  return target.reply({ embeds: [embed], components });
+  if (target && typeof target.reply === 'function') {
+    if (global && typeof global.safeReply === 'function') return global.safeReply(target, { embeds: [embed], components });
+    try { return target.reply({ embeds: [embed], components }); } catch (e) {}
+  }
+  if (target && typeof target.edit === 'function') {
+    try { return target.edit({ embeds: [embed], components }); } catch (e) {}
+  }
+  return null;
 }
 
 async function execute({ message, interaction, args }) {
@@ -425,13 +448,14 @@ async function handleModal(interaction) {
   session.searchQuery = query;
   session.searchCardIds = matchingIds;
   session.page = 0;
+  // Fetch matching listings so we can report the number of listings found
+  const { listings, total } = await fetchListings(session);
 
   try {
     const channel = interaction.client.channels.cache.get(session.channelId);
     if (channel && session.messageId) {
       const msg = await channel.messages.fetch(session.messageId).catch(() => null);
       if (msg) {
-        const { listings, total } = await fetchListings(session);
         const embed = buildMarketEmbed(listings, session, total);
         const components = buildMarketComponents(listings, session, total, userId);
         await msg.edit({ embeds: [embed], components });
@@ -439,7 +463,7 @@ async function handleModal(interaction) {
     }
   } catch {}
 
-  return interaction.reply({ content: `🔍 Showing results for **"${query}"** (${results.length} card${results.length !== 1 ? 's' : ''} found)`, ephemeral: true });
+  return interaction.reply({ content: `🔍 Showing results for **"${query}"** (${total} listing${total !== 1 ? 's' : ''} found)`, ephemeral: true });
 }
 
 module.exports = { execute, handleButton, handleSelect, handleModal };

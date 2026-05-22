@@ -151,7 +151,8 @@ module.exports = {
     const embed = createCategoryEmbed(categoryKey, interaction.user);
     
     if (!embed) {
-      return interaction.update({ content: 'Category not found.', components: [] });
+      if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { content: 'Category not found.', components: [] });
+      return global.safeUpdate(interaction, { content: 'Category not found.', components: [] });
     }
 
     const backButton = new ActionRowBuilder().addComponents(
@@ -161,7 +162,8 @@ module.exports = {
         .setStyle(require('discord.js').ButtonStyle.Secondary)
     );
 
-    return interaction.update({ embeds: [embed], components: [backButton] });
+    if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { embeds: [embed], components: [backButton] });
+    return global.safeUpdate(interaction, { embeds: [embed], components: [backButton] });
   },
 
   // Handle back button
@@ -170,6 +172,7 @@ module.exports = {
     const mainEmbed = createMainHelpEmbed(discordUser);
     const row = new ActionRowBuilder().addComponents(createSelectMenu());
     
-    return interaction.update({ embeds: [mainEmbed], components: [row] });
+    if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { embeds: [mainEmbed], components: [row] });
+    return global.safeUpdate(interaction, { embeds: [mainEmbed], components: [row] });
   }
 };

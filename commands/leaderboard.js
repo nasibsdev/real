@@ -150,7 +150,19 @@ module.exports = {
       const nextAttachment = new AttachmentBuilder(nextImageBuffer, { name: 'leaderboard.png' });
       const nextRow = buildSelectRow(selected);
 
-      await selectInteraction.update({ files: [nextAttachment], components: [nextRow] });
+      try {
+        if (global && typeof global.safeUpdate === 'function') {
+          await global.safeUpdate(selectInteraction, { files: [nextAttachment], components: [nextRow] });
+        } else {
+          await selectInteraction.update({ files: [nextAttachment], components: [nextRow] });
+        }
+      } catch (e) {
+        // Ignore expired/unknown interaction errors (10062). Log others.
+        if (!(e && e.code === 10062)) {
+          console.error('Failed to update leaderboard select interaction:', e);
+        }
+        try { await selectInteraction.reply({ content: 'Unable to update selection (interaction expired).', ephemeral: true }); } catch (e2) {}
+      }
     });
 
     collector.on('end', () => {

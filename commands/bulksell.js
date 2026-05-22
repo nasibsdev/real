@@ -352,19 +352,22 @@ module.exports = {
 
     if (action === 'no') {
       pendingBulkSell.delete(token);
-      return interaction.update({ content: 'Bulk sell cancelled.', embeds: [], components: [] });
+      if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { content: 'Bulk sell cancelled.', embeds: [], components: [] });
+      return global.safeUpdate(interaction, { content: 'Bulk sell cancelled.', embeds: [], components: [] });
     }
 
     const user = await User.findOne({ userId: session.userId });
     if (!user) {
       pendingBulkSell.delete(token);
-      return interaction.update({ content: 'Your account could not be found.', embeds: [], components: [] });
+      if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { content: 'Your account could not be found.', embeds: [], components: [] });
+      return global.safeUpdate(interaction, { content: 'Your account could not be found.', embeds: [], components: [] });
     }
 
     const plan = buildSellPlan(user, session.requests);
     if (!plan.actions.length) {
       pendingBulkSell.delete(token);
-      return interaction.update({ content: 'Nothing could be sold. Your inventory may have changed.', embeds: [], components: [] });
+      if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { content: 'Nothing could be sold. Your inventory may have changed.', embeds: [], components: [] });
+      return global.safeUpdate(interaction, { content: 'Nothing could be sold. Your inventory may have changed.', embeds: [], components: [] });
     }
 
     const result = await performSell(user, plan.actions);
@@ -380,6 +383,7 @@ module.exports = {
     if (result.soldLines.length > soldDisplayLimit) soldLinesDisplay.push(`and ${result.soldLines.length - soldDisplayLimit}x more...`);
     embed.setDescription(`Sold ${result.soldLines.length} item(s) for **${result.total}** ¥.\n\n${soldLinesDisplay.join('\n')}`);
 
-    return interaction.update({ embeds: [embed], components: [] });
+    if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { embeds: [embed], components: [] });
+    return global.safeUpdate(interaction, { embeds: [embed], components: [] });
   }
 };

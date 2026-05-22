@@ -6001,7 +6001,7 @@ const consolidatedCardData = [
     image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/4/400/4465.png'
   },
   {
-    character: 'Shanks & Beckman',
+    character: 'Shanks',
     alias: ['shanks beckman', 'shanks & beckman'],
     id: '4270',
     pullable: true,
@@ -6325,13 +6325,13 @@ const consolidatedCardData = [
     image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/3/300/3358.png'
   },
   {
-    character: 'Ben Beckman & Lucky Roux',
+    character: 'Ben Beckman',
     alias: ['beckman roux', 'leading officers'],
     id: '3696',
     pullable: true,
     attribute: 'STR',
     emoji: '<:1000051548:1506052986726518904>',
-    title: 'Ben Beckman & Lucky Roux - Leading Officers',
+    title: 'Ben Beckman',
     faculty: 'Red-Haired Pirates',
     rank: 'S',
     power: 28,
@@ -6343,13 +6343,13 @@ const consolidatedCardData = [
     image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/3/600/3696.png'
   },
   {
-    character: 'Ben Beckman & Yasopp',
+    character: 'Ben Beckman',
     alias: ['beckman yasopp'],
     id: '4547',
     pullable: true,
     attribute: 'STR',
     emoji: '<:1000051549:1506053611724079124>',
-    title: 'Beckman & Yasopp',
+    title: 'Beckman',
     faculty: 'Red-Haired Pirates',
     rank: 'SS',
     power: 44,
@@ -6436,7 +6436,7 @@ const consolidatedCardData = [
     image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/3/100/3121.png'
   },
   {
-    character: 'Gabu & Snake',
+    character: 'Gabu',
     alias: ['gabu', 'gabu & snake'],
     id: '3997',
     pullable: true,
@@ -6457,7 +6457,7 @@ const consolidatedCardData = [
     image_url: 'https://2shankz.github.io/optc-db.github.io/api/images/full/transparent/3/900/3997.png'
   },
   {
-    character: 'Bonk Punch & Monster',
+    character: 'Bonk Punch',
     alias: ['bonk punch'],
     id: '3998',
     pullable: true,

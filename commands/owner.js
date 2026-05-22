@@ -430,6 +430,18 @@ async function execute({ message, args }) {
     return message.reply(`Reset notifications have been disabled (was <#${resetsChannel}>).`);
   }
 
+  if (sub === 'activeresets') {
+    const { getBotConfig: _getBC } = require('../models/BotConfig');
+    const single = await _getBC('resetsChannel');
+    const multi = await _getBC('resetsChannels');
+    const channels = [];
+    if (Array.isArray(multi) && multi.length) channels.push(...multi);
+    if (single) channels.push(single);
+    if (!channels.length) return message.reply('No reset notification channels are configured.');
+    const lines = channels.map(c => `<#${c}>`);
+    return message.reply(`Active reset notification channels:\n${lines.join('\n')}`);
+  }
+
   if (sub === 'guildlist') {
     const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
     const guilds = [...message.client.guilds.cache.values()];
@@ -528,6 +540,18 @@ async function execute({ message, args }) {
     if (!existing) return message.reply('No market channel is currently configured.');
     await _deleteBC('marketChannel');
     return message.reply(`Market listing channel has been disabled (was <#${existing}>).`);
+  }
+
+  if (sub === 'activemarkets') {
+    const { getBotConfig: _getBC } = require('../models/BotConfig');
+    const single = await _getBC('marketChannel');
+    const multi = await _getBC('marketChannels');
+    const channels = [];
+    if (Array.isArray(multi) && multi.length) channels.push(...multi);
+    if (single) channels.push(single);
+    if (!channels.length) return message.reply('No market listing channels are configured.');
+    const lines = channels.map(c => `<#${c}>`);
+    return message.reply(`Active market listing channels:\n${lines.join('\n')}`);
   }
 
   if (sub === 'setsail') {
@@ -787,7 +811,8 @@ async function handleButton(interaction, customId) {
       new ButtonBuilder().setCustomId(`guildlist_next:${newPage}`).setLabel('Next').setStyle(ButtonStyle.Primary).setDisabled(newPage >= totalPages - 1)
     );
 
-    return interaction.update({ embeds: [embed], components: [row] });
+    if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { embeds: [embed], components: [row] });
+    return global.safeUpdate(interaction, { embeds: [embed], components: [row] });
   }
 
   if (key !== 'owner_reset_all') return;
@@ -825,7 +850,7 @@ async function handleButton(interaction, customId) {
   }
 
   // cancel
-  return interaction.update({ content: 'Reset cancelled.', embeds: [], components: [] });
+  return global.safeUpdate(interaction, { content: 'Reset cancelled.', embeds: [], components: [] });
 }
 
 module.exports = { list, execute, handleButton };

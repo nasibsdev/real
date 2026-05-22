@@ -96,7 +96,8 @@ module.exports = {
     // Only allow one equipped badge — replace any existing equipped badge with the new one
     user.badgesEquipped = [def.id];
     await user.save();
-    return interaction.update({ content: `Equipped badge ${def.icon} ${def.title}`, embeds: [], components: [] });
+    if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { content: `Equipped badge ${def.icon} ${def.title}`, embeds: [], components: [] });
+    return global.safeUpdate(interaction, { content: `Equipped badge ${def.icon} ${def.title}`, embeds: [], components: [] });
   },
 
   async handleButton(interaction, customId) {
@@ -147,6 +148,7 @@ module.exports = {
         .addOptions(ownedOptions)
     ));
 
-    return interaction.update({ embeds: [embed], components });
+    if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { embeds: [embed], components });
+    return global.safeUpdate(interaction, { embeds: [embed], components });
   }
 };

@@ -482,16 +482,6 @@ const triviaQuestions = {
  answer: 'B'
  },
   {
-  question: ' How long did Portgas D. Rouges pregnancy last?',
-  options: {
-  A: 'ten months',
-  B: 'twenty weeks',
-  C: 'two years',
-  D: 'nine months'
- },
- answer: 'B'
- },
-  {
   question: 'What is the Bounty of "Rookie" Rockstar?',
   options: {
   A: '17,000,000',

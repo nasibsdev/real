@@ -279,7 +279,8 @@ module.exports = {
 
     const questions = chooseQuestions(selected);
     if (!questions.length) {
-      return interaction.update({ content: 'No trivia questions are available for that difficulty yet.', embeds: [], components: [] });
+      if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { content: 'No trivia questions are available for that difficulty yet.', embeds: [], components: [] });
+      return global.safeUpdate(interaction, { content: 'No trivia questions are available for that difficulty yet.', embeds: [], components: [] });
     }
 
     const session = {
@@ -300,7 +301,8 @@ module.exports = {
 
     const questionEmbed = buildQuestionEmbed(questions[0], 0, questions.length);
     const answerRow = buildAnswerRow(userId, 0);
-    await interaction.update({ content: null, embeds: [questionEmbed], components: [answerRow] });
+    if (global && typeof global.safeUpdate === 'function') await global.safeUpdate(interaction, { content: null, embeds: [questionEmbed], components: [answerRow] });
+    else await interaction.update({ content: null, embeds: [questionEmbed], components: [answerRow] });
     // Store interaction reference in session for timeout handler to use editReply
     session.interaction = interaction;
     await startTriviaTimeout(session, interaction);
@@ -345,7 +347,8 @@ module.exports = {
           : '';
 
         feedbackEmbed.setDescription(`${feedbackEmbed.data.description}${summary}`);
-        return interaction.update({ embeds: [feedbackEmbed], components: [] });
+        if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { embeds: [feedbackEmbed], components: [] });
+        return global.safeUpdate(interaction, { embeds: [feedbackEmbed], components: [] });
       }
 
       session.correctCount += 1;
@@ -368,12 +371,14 @@ module.exports = {
         }
 
         activeTriviaSessions.delete(ownerId);
-        return interaction.update({ embeds: [feedbackEmbed], components: [] });
+        if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { embeds: [feedbackEmbed], components: [] });
+        return global.safeUpdate(interaction, { embeds: [feedbackEmbed], components: [] });
       }
 
       session.currentIndex += 1;
       session.pendingNext = true;
-      await interaction.update({ embeds: [feedbackEmbed], components: [buildContinueRow(ownerId)] });
+      if (global && typeof global.safeUpdate === 'function') await global.safeUpdate(interaction, { embeds: [feedbackEmbed], components: [buildContinueRow(ownerId)] });
+      else await global.safeUpdate(interaction, { embeds: [feedbackEmbed], components: [buildContinueRow(ownerId)] });
       await startTriviaTimeout(session, interaction);
       return;
     }
@@ -392,7 +397,8 @@ module.exports = {
       session.pendingNext = false;
       const questionEmbed = buildQuestionEmbed(nextQuestion, session.currentIndex, session.questions.length);
       const answerRow = buildAnswerRow(ownerId, session.currentIndex);
-      await interaction.update({ embeds: [questionEmbed], components: [answerRow] });
+      if (global && typeof global.safeUpdate === 'function') await global.safeUpdate(interaction, { embeds: [questionEmbed], components: [answerRow] });
+      else await global.safeUpdate(interaction, { embeds: [questionEmbed], components: [answerRow] });
       await startTriviaTimeout(session, interaction);
       return;
     }

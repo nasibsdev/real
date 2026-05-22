@@ -234,7 +234,7 @@ module.exports = [
   },
 
 {
-    name: "Kuka ́Pirates",
+    name: "Kuja Pirates",
     icon: '<:1000050037:1505390016187207730>',
     packImage: 'https://files.catbox.moe/obaxrx.png',
     rank: 'A',

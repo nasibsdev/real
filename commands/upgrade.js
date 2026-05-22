@@ -178,7 +178,8 @@ module.exports = {
 
   handleUpgradeButton: async (interaction) => {
     if (interaction.customId === 'upgrade_cancel') {
-      return interaction.update({ content: 'Star upgrade cancelled.', embeds: [], components: [] });
+      if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { content: 'Star upgrade cancelled.', embeds: [], components: [] });
+      return global.safeUpdate(interaction, { content: 'Star upgrade cancelled.', embeds: [], components: [] });
     }
 
     const match = interaction.customId.match(/^upgrade_star_(gem|shard)_(.+)$/);
@@ -190,37 +191,49 @@ module.exports = {
     if (!user) return interaction.reply({ content: 'User not found.', ephemeral: true });
 
     const cardDef = cards.find(c => c.id === cardId);
-    if (!cardDef) return interaction.update({ content: 'Card not found.', embeds: [], components: [] });
+    if (!cardDef) {
+      if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { content: 'Card not found.', embeds: [], components: [] });
+      return global.safeUpdate(interaction, { content: 'Card not found.', embeds: [], components: [] });
+    }
 
     const ownedEntry = (user.ownedCards || []).find(e => e.cardId === cardId);
-    if (!ownedEntry) return interaction.update({ content: 'You no longer own that card.', embeds: [], components: [] });
-
+    if (!ownedEntry) {
+      if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { content: 'You no longer own that card.', embeds: [], components: [] });
+      return global.safeUpdate(interaction, { content: 'You no longer own that card.', embeds: [], components: [] });
+    }
     const currentStar = ownedEntry.starLevel || 0;
     const maxStar = getMaxStarForRank(cardDef.rank);
     const nextStar = currentStar + 1;
 
     if (currentStar >= maxStar) {
-      return interaction.update({ content: `This card is already at the maximum star level for its rank (${maxStar}★).`, embeds: [], components: [] });
+      if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { content: `This card is already at the maximum star level for its rank (${maxStar}★).`, embeds: [], components: [] });
+      return global.safeUpdate(interaction, { content: `This card is already at the maximum star level for its rank (${maxStar}★).`, embeds: [], components: [] });
     }
 
     const requirement = getStarUpgradeRequirement(nextStar);
-    if (!requirement) return interaction.update({ content: 'This card cannot be upgraded further.', embeds: [], components: [] });
+    if (!requirement) {
+      if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { content: 'This card cannot be upgraded further.', embeds: [], components: [] });
+      return global.safeUpdate(interaction, { content: 'This card cannot be upgraded further.', embeds: [], components: [] });
+    }
 
     if ((ownedEntry.level || 1) < requirement.level) {
-      return interaction.update({ content: `This card must reach level ${requirement.level} before it can gain Star ${nextStar}.`, embeds: [], components: [] });
+      if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { content: `This card must reach level ${requirement.level} before it can gain Star ${nextStar}.`, embeds: [], components: [] });
+      return global.safeUpdate(interaction, { content: `This card must reach level ${requirement.level} before it can gain Star ${nextStar}.`, embeds: [], components: [] });
     }
 
     const shardItemId = getShardItemIdForAttribute(cardDef.attribute);
 
     if (method === 'gem') {
       if ((user.gems || 0) < 1) {
-        return interaction.update({ content: 'You need 1 Gem to upgrade this star.', embeds: [], components: [] });
+        if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { content: 'You need 1 Gem to upgrade this star.', embeds: [], components: [] });
+        return global.safeUpdate(interaction, { content: 'You need 1 Gem to upgrade this star.', embeds: [], components: [] });
       }
       user.gems -= 1;
     } else {
       const shardCount = getShardCount(user, shardItemId);
       if (shardCount < requirement.shardCost) {
-        return interaction.update({ content: `You need ${requirement.shardCost} ${cardDef.attribute} Shards to upgrade this star.`, embeds: [], components: [] });
+        if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { content: `You need ${requirement.shardCost} ${cardDef.attribute} Shards to upgrade this star.`, embeds: [], components: [] });
+        return global.safeUpdate(interaction, { content: `You need ${requirement.shardCost} ${cardDef.attribute} Shards to upgrade this star.`, embeds: [], components: [] });
       }
       consumeItems(user, shardItemId, requirement.shardCost);
     }
@@ -275,6 +288,7 @@ module.exports = {
       .setDescription(descParts.join('\n'))
       .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() });
 
-    return interaction.update({ content: '', embeds: [newEmbed], components: [] });
+    if (global && typeof global.safeUpdate === 'function') return global.safeUpdate(interaction, { content: '', embeds: [newEmbed], components: [] });
+    return global.safeUpdate(interaction, { content: '', embeds: [newEmbed], components: [] });
   }
 };

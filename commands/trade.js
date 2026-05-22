@@ -1,6 +1,7 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const User = require('../models/User');
 const { getCardById, formatCardId } = require('../utils/cards');
+const { levelers } = require('../data/levelers');
 
 // Local item display mapping (kept in sync with `commands/inventory.js`)
 const ITEM_DISPLAY_NAMES = {
@@ -108,12 +109,12 @@ module.exports = {
     const initiatorId = message ? message.author.id : interaction.user.id;
     const initiatorName = message ? message.author.username : interaction.user.username;
     const rawOffer = message ? args[0] : interaction.options.getString('offer');
-    const wantCardId = message ? args[1] : interaction.options.getString('want');
+    const rawWant = message ? args[1] : interaction.options.getString('want');
     const mention = message ? args[2] : interaction.options.getUser('target')?.id;
     const targetId = message ? parseMention(mention) || mention : mention;
 
-    if (!rawOffer || !wantCardId || !targetId) {
-      const reply = 'Usage: op trade <offer|*<beli>> <wantedCardId> <@user>'; 
+    if (!rawOffer || !rawWant || !targetId) {
+      const reply = 'Usage: op trade <offer|*<beli>|<leveler>> <wanted|*<beli>|<leveler>> <@user>'; 
       if (message) return message.reply(reply);
       return interaction.reply({ content: reply, ephemeral: true });
     }
@@ -129,100 +130,89 @@ module.exports = {
     if (!initiator) return (message ? message.reply('You have no account.') : interaction.reply({ content: 'You have no account.', ephemeral: true }));
     if (!target) return (message ? message.reply('Target has no account.') : interaction.reply({ content: 'Target has no account.', ephemeral: true }));
 
-    const isBeliOffer = typeof rawOffer === 'string' && rawOffer.startsWith('*');
-    let beliAmt = 0;
-    let offeredCardId = null;
-    if (isBeliOffer) {
-      beliAmt = parseInt(rawOffer.slice(1), 10);
-      if (isNaN(beliAmt) || beliAmt < 100) {
-        const r = 'Beli offer must be a number and at least 100 (prefix with *).';
-        if (message) return message.reply(r);
-        return interaction.reply({ content: r, ephemeral: true });
-      }
-    } else {
-      offeredCardId = rawOffer;
+    // helper to find a leveler by id or name (accept id or compact name without spaces)
+    function findLeveler(query) {
+      if (!query) return null;
+      const q = String(query).toLowerCase().replace(/\s+/g, '');
+      const match = levelers.find(l => l.id.toLowerCase() === q || l.name.toLowerCase().replace(/\s+/g, '') === q || l.name.toLowerCase() === q) || null;
+      return match;
     }
 
-    // Validate requested card
-    const wantedCardDef = getCardById(wantCardId);
-    if (!wantedCardDef) {
-      const r = `Requested card ${formatCardId(wantCardId)} not found.`;
+    function parseTradeItem(raw) {
+      if (typeof raw === 'string' && raw.startsWith('*')) {
+        const amt = parseInt(raw.slice(1).replace(/[^0-9]/g, ''), 10);
+        if (isNaN(amt) || amt < 1) return null;
+        return { kind: 'beli', amount: amt };
+      }
+      // leveler?
+      const levelerDef = findLeveler(raw);
+      if (levelerDef) return { kind: 'leveler', id: levelerDef.id, def: levelerDef };
+      // card?
+      const cardDef = getCardById(raw);
+      if (cardDef) return { kind: 'card', id: cardDef.id, def: cardDef };
+      return null;
+    }
+
+    const offered = parseTradeItem(rawOffer);
+    const requested = parseTradeItem(rawWant);
+    if (!offered || !requested) {
+      const r = 'Unable to parse offered or requested item. Use a card id/name, leveler id/name, or *<amount> for beli.';
       if (message) return message.reply(r);
       return interaction.reply({ content: r, ephemeral: true });
     }
 
-    // If offering a card, resolve its definition as well
-    let offeredCardDef = null;
-    if (!isBeliOffer) {
-      offeredCardDef = getCardById(offeredCardId);
-      if (!offeredCardDef) {
-        const r = `Offered card ${formatCardId(offeredCardId)} not found.`;
-        if (message) return message.reply(r);
-        return interaction.reply({ content: r, ephemeral: true });
-      }
-    }
-
-    // Build session details and validate ownership
     const sessionId = `${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
     const session = { id: sessionId, initiatorId, targetId, createdAt: Date.now() };
 
-    if (!isBeliOffer) {
-      // Card-for-card: offeredCardId must exist and be owned by initiator
-      const offeredEntry = (initiator.ownedCards || []).find(e => e.cardId === offeredCardDef.id);
+    // Validate ownership / funds depending on kinds
+    // card <-> card
+    if (offered.kind === 'card' && requested.kind === 'card') {
+      const offeredEntry = (initiator.ownedCards || []).find(e => e.cardId === offered.id);
       if (!offeredEntry) {
-        const r = `You do not own ${offeredCardDef.emoji || ''} **${offeredCardDef.character || formatCardId(offeredCardDef.id)}**.`;
+        const r = `You do not own ${offered.def.emoji || ''} **${offered.def.character || offered.id}**.`;
         if (message) return message.reply(r);
         return interaction.reply({ content: r, ephemeral: true });
       }
-      const targetEntry = (target.ownedCards || []).find(e => e.cardId === wantedCardDef.id);
+      const targetEntry = (target.ownedCards || []).find(e => e.cardId === requested.id);
       if (!targetEntry) {
-        const r = `Target does not own ${wantedCardDef.emoji || ''} **${wantedCardDef.character || formatCardId(wantedCardDef.id)}**.`;
+        const r = `Target does not own ${requested.def.emoji || ''} **${requested.def.character || requested.id}**.`;
         if (message) return message.reply(r);
         return interaction.reply({ content: r, ephemeral: true });
       }
-
       // Prevent trading cards that are on teams
-      if ((initiator.team || []).includes(offeredCardDef.id)) {
+      if ((initiator.team || []).includes(offered.id)) {
         const r = 'You must remove the offered card from your team before trading it.';
         if (message) return message.reply(r);
         return interaction.reply({ content: r, ephemeral: true });
       }
-      if ((target.team || []).includes(wantedCardDef.id)) {
+      if ((target.team || []).includes(requested.id)) {
         const r = 'Target must remove the requested card from their team before trading.';
         if (message) return message.reply(r);
         return interaction.reply({ content: r, ephemeral: true });
       }
-      // Prevent trading cards that currently have an artifact equipped to them
-      if (cardHasArtifactEquipped(target, wantedCardDef.id)) {
+      if (cardHasArtifactEquipped(target, requested.id)) {
         const r = 'Target must unequip any artifact attached to this card before trading.';
         if (message) return message.reply(r);
         return interaction.reply({ content: r, ephemeral: true });
       }
-      // Prevent trading cards that currently have an artifact equipped to them
-      if (cardHasArtifactEquipped(initiator, offeredCardDef.id)) {
+      if (cardHasArtifactEquipped(initiator, offered.id)) {
         const r = 'You must unequip any artifact attached to this card before trading.';
-        if (message) return message.reply(r);
-        return interaction.reply({ content: r, ephemeral: true });
-      }
-      if (cardHasArtifactEquipped(target, wantedCardDef.id)) {
-        const r = 'Target must unequip any artifact attached to this card before trading.';
         if (message) return message.reply(r);
         return interaction.reply({ content: r, ephemeral: true });
       }
 
       session.type = 'card_for_card';
-      session.offered = { cardId: offeredCardDef.id, entry: offeredEntry };
-      session.requested = { cardId: wantedCardDef.id, entry: targetEntry };
+      session.offered = { cardId: offered.id, entry: offeredEntry };
+      session.requested = { cardId: requested.id, entry: targetEntry };
 
       // compute shard requirements for both sides (based on card attribute & rank)
-      const offeredShardId = shardIdForAttribute(offeredCardDef.attribute || '');
-      const offeredShardCount = shardCostForRank(offeredCardDef.rank || '');
-      const requestedShardId = shardIdForAttribute(wantedCardDef.attribute || '');
-      const requestedShardCount = shardCostForRank(wantedCardDef.rank || '');
+      const offeredShardId = shardIdForAttribute(offered.def.attribute || '');
+      const offeredShardCount = shardCostForRank(offered.def.rank || '');
+      const requestedShardId = shardIdForAttribute(requested.def.attribute || '');
+      const requestedShardCount = shardCostForRank(requested.def.rank || '');
       session.offeredShard = { shardId: offeredShardId, count: offeredShardCount };
       session.requestedShard = { shardId: requestedShardId, count: requestedShardCount };
 
-      // enforce initiator has required shards for their offered card
       if (session.offeredShard.count > 0 && session.offeredShard.shardId) {
         const have = findItemCount(initiator.items || [], session.offeredShard.shardId);
         if (have < session.offeredShard.count) {
@@ -233,59 +223,127 @@ module.exports = {
           return interaction.reply({ content: r, ephemeral: true });
         }
       }
-    } else {
-      // Beli-for-card: ensure initiator has beli
+    }
+    // beli <-> card (initiator beli buying card)
+    else if (offered.kind === 'beli' && requested.kind === 'card') {
+      const beliAmt = offered.amount;
       if ((initiator.balance || 0) < beliAmt) {
         const r = `You do not have ¥${beliAmt}.`;
         if (message) return message.reply(r);
         return interaction.reply({ content: r, ephemeral: true });
       }
-
-      // Target must own the wanted card
-      const targetEntry = (target.ownedCards || []).find(e => e.cardId === wantedCardDef.id);
+      const targetEntry = (target.ownedCards || []).find(e => e.cardId === requested.id);
       if (!targetEntry) {
-        const r = `Target does not own ${wantedCardDef.emoji || ''} **${wantedCardDef.character || formatCardId(wantedCardDef.id)}**.`;
+        const r = `Target does not own ${requested.def.emoji || ''} **${requested.def.character || requested.id}**.`;
         if (message) return message.reply(r);
         return interaction.reply({ content: r, ephemeral: true });
       }
-      if ((target.team || []).includes(wantedCardDef.id)) {
+      if ((target.team || []).includes(requested.id)) {
         const r = 'Target must remove the requested card from their team before trading.';
         if (message) return message.reply(r);
         return interaction.reply({ content: r, ephemeral: true });
       }
-
-      // Beli-for-card: buyer pays Beli only (no shard requirement)
       session.type = 'beli_for_card';
       session.beli = beliAmt;
-      session.requested = { cardId: wantedCardDef.id, entry: targetEntry };
+      session.requested = { cardId: requested.id, entry: targetEntry };
+      // compute shard requirement for the requested card (buyer may need shards)
+      const shardId = shardIdForAttribute(requested.def.attribute || '');
+      const shardCount = shardCostForRank(requested.def.rank || '');
+      if (shardCount > 0 && shardId) session.shardReq = { shardId, count: shardCount };
+    }
+    // card offered, requesting beli (reverse)
+    else if (offered.kind === 'card' && requested.kind === 'beli') {
+      const requestedAmt = requested.amount;
+      const offeredEntry = (initiator.ownedCards || []).find(e => e.cardId === offered.id);
+      if (!offeredEntry) {
+        const r = `You do not own ${offered.def.emoji || ''} **${offered.def.character || offered.id}**.`;
+        if (message) return message.reply(r);
+        return interaction.reply({ content: r, ephemeral: true });
+      }
+      if ((initiator.team || []).includes(offered.id)) {
+        const r = 'You must remove the offered card from your team before trading it.';
+        if (message) return message.reply(r);
+        return interaction.reply({ content: r, ephemeral: true });
+      }
+      if (cardHasArtifactEquipped(initiator, offered.id)) {
+        const r = 'You must unequip any artifact attached to this card before trading.';
+        if (message) return message.reply(r);
+        return interaction.reply({ content: r, ephemeral: true });
+      }
+      session.type = 'card_for_beli';
+      session.offered = { cardId: offered.id, entry: offeredEntry };
+      session.requested = { beli: requestedAmt };
+    }
+    // leveler related trades (no shards)
+    else if (offered.kind === 'beli' && requested.kind === 'leveler') {
+      const amount = offered.amount;
+      if ((initiator.balance || 0) < amount) {
+        const r = `You do not have ¥${amount}.`;
+        if (message) return message.reply(r);
+        return interaction.reply({ content: r, ephemeral: true });
+      }
+      // ensure target has leveler
+      const item = (target.items || []).find(i => i.itemId === requested.id && i.quantity > 0);
+      if (!item) {
+        const r = `Target does not have the leveler ${requested.def.name}.`;
+        if (message) return message.reply(r);
+        return interaction.reply({ content: r, ephemeral: true });
+      }
+      session.type = 'beli_for_leveler';
+      session.beli = amount;
+      session.requested = { levelerId: requested.id };
+    }
+    else if (offered.kind === 'leveler' && requested.kind === 'beli') {
+      // initiator offers leveler and requests beli from target
+      const item = (initiator.items || []).find(i => i.itemId === offered.id && i.quantity > 0);
+      if (!item) {
+        const r = `You do not have the leveler ${offered.def.name}.`;
+        if (message) return message.reply(r);
+        return interaction.reply({ content: r, ephemeral: true });
+      }
+      session.type = 'leveler_for_beli';
+      session.offered = { levelerId: offered.id };
+      session.requested = { beli: requested.amount };
+    }
+    else if (offered.kind === 'leveler' && requested.kind === 'leveler') {
+      const itemA = (initiator.items || []).find(i => i.itemId === offered.id && i.quantity > 0);
+      const itemB = (target.items || []).find(i => i.itemId === requested.id && i.quantity > 0);
+      if (!itemA) {
+        const r = `You do not have the leveler ${offered.def.name}.`;
+        if (message) return message.reply(r);
+        return interaction.reply({ content: r, ephemeral: true });
+      }
+      if (!itemB) {
+        const r = `Target does not have the leveler ${requested.def.name}.`;
+        if (message) return message.reply(r);
+        return interaction.reply({ content: r, ephemeral: true });
+      }
+      session.type = 'leveler_for_leveler';
+      session.offered = { levelerId: offered.id };
+      session.requested = { levelerId: requested.id };
+    }
+    else {
+      const r = 'This combination of trade types is not supported.';
+      if (message) return message.reply(r);
+      return interaction.reply({ content: r, ephemeral: true });
     }
 
     // Build confirmation embed for target to accept/decline
-    const initiatorBadge = initiator.discordAvatar || '';
-    // build user-friendly displays
-    let offeredDisplay;
-    if (isBeliOffer) {
-      offeredDisplay = `¥${session.beli.toLocaleString()}`;
-    } else if (offeredCardDef) {
-      if (offeredCardDef.ship) {
-        offeredDisplay = `${offeredCardDef.character} (ship) (${offeredCardDef.rank || ''})`;
-      } else {
-        offeredDisplay = `${offeredCardDef.emoji || ''} ${offeredCardDef.character || offeredCardDef.id} (${offeredCardDef.rank || ''})`;
+    // Build user-friendly display strings from the parsed offer/request
+    function formatItemDisplay(item) {
+      if (!item) return 'Unknown';
+      if (item.kind === 'beli') return `¥${(item.amount || 0).toLocaleString()}`;
+      if (item.kind === 'leveler') return `${item.def?.name || item.id} (leveler)`;
+      if (item.kind === 'card') {
+        const def = item.def || getCardById(item.id) || {};
+        if (def.ship) return `${def.character || item.id} (ship) (${def.rank || ''})`;
+        return `${def.emoji || ''} ${def.character || item.id} (${def.rank || ''})`;
       }
-    } else {
-      offeredDisplay = formatCardId(offeredCardId);
+      return String(item.id || item.amount || item);
     }
 
-    let requestedDisplay;
-    if (wantedCardDef) {
-      if (wantedCardDef.ship) {
-        requestedDisplay = `${wantedCardDef.character} (ship) (${wantedCardDef.rank || ''})`;
-      } else {
-        requestedDisplay = `${wantedCardDef.emoji || ''} ${wantedCardDef.character || wantedCardDef.id} (${wantedCardDef.rank || ''})`;
-      }
-    } else {
-      requestedDisplay = formatCardId(wantCardId);
-    }
+    const offeredDisplay = formatItemDisplay(offered);
+    const requestedDisplay = formatItemDisplay(requested);
 
     const embed = new EmbedBuilder()
       .setTitle('Trade Proposal')
@@ -353,7 +411,7 @@ module.exports = {
 
     if (key === 'trade_cancel') {
       global.tradeSessions.delete(sessionId);
-      return interaction.update({ content: 'Trade declined.', embeds: [], components: [] });
+      return global.safeUpdate(interaction, { content: 'Trade declined.', embeds: [], components: [] });
     }
 
     // Accept flow
@@ -363,7 +421,7 @@ module.exports = {
       const target = await User.findOne({ userId: session.targetId });
       if (!initiator || !target) {
         global.tradeSessions.delete(sessionId);
-        return interaction.update({ content: 'One of the users no longer has an account. Trade cancelled.', embeds: [], components: [] });
+        return global.safeUpdate(interaction, { content: 'One of the users no longer has an account. Trade cancelled.', embeds: [], components: [] });
       }
 
       try {
@@ -373,7 +431,7 @@ module.exports = {
           const requestedEntryIndex = (target.ownedCards || []).findIndex(e => e.cardId === session.requested.cardId);
           if (offeredEntryIndex === -1 || requestedEntryIndex === -1) {
             global.tradeSessions.delete(sessionId);
-            return interaction.update({ content: 'Either user no longer owns the required card. Trade cancelled.', embeds: [], components: [] });
+            return global.safeUpdate(interaction, { content: 'Either user no longer owns the required card. Trade cancelled.', embeds: [], components: [] });
           }
 
           // verify both parties still have required shards (if any)
@@ -388,7 +446,7 @@ module.exports = {
               const sname = ITEM_DISPLAY_NAMES[offeredShardId] || offeredShardId;
               const semoji = ITEM_DISPLAY_EMOJIS[offeredShardId] || '';
               global.tradeSessions.delete(sessionId);
-              return interaction.update({ content: `Trade cancelled: <@${session.initiatorId}> lacks required shards (${semoji} ${sname} x${offeredShardCount}).`, embeds: [], components: [] });
+              return global.safeUpdate(interaction, { content: `Trade cancelled: <@${session.initiatorId}> lacks required shards (${semoji} ${sname} x${offeredShardCount}).`, embeds: [], components: [] });
             }
           }
 
@@ -398,18 +456,18 @@ module.exports = {
               const sname = ITEM_DISPLAY_NAMES[requestedShardId] || requestedShardId;
               const semoji = ITEM_DISPLAY_EMOJIS[requestedShardId] || '';
                 global.tradeSessions.delete(sessionId);
-                return interaction.update({ content: `Trade cancelled: <@${session.targetId}> lacks required shards (${semoji} ${sname} x${requestedShardCount}).`, embeds: [], components: [] });
+                return global.safeUpdate(interaction, { content: `Trade cancelled: <@${session.targetId}> lacks required shards (${semoji} ${sname} x${requestedShardCount}).`, embeds: [], components: [] });
             }
           }
 
           // prevent trading if artifacts have been equipped since proposal
           if (cardHasArtifactEquipped(initiator, session.offered.cardId)) {
             global.tradeSessions.delete(sessionId);
-            return interaction.update({ content: 'Trade cancelled: Offered card has an artifact equipped. Unequip it first.', embeds: [], components: [] });
+            return global.safeUpdate(interaction, { content: 'Trade cancelled: Offered card has an artifact equipped. Unequip it first.', embeds: [], components: [] });
           }
           if (cardHasArtifactEquipped(target, session.requested.cardId)) {
             global.tradeSessions.delete(sessionId);
-            return interaction.update({ content: 'Trade cancelled: Requested card has an artifact equipped. Target must unequip it first.', embeds: [], components: [] });
+            return global.safeUpdate(interaction, { content: 'Trade cancelled: Requested card has an artifact equipped. Target must unequip it first.', embeds: [], components: [] });
           }
 
           // perform transfers: remove entries
@@ -464,7 +522,7 @@ module.exports = {
           if (shardParts.length) completeMsg += ` Shards exchanged: ${shardParts.join(' | ')}.`;
 
           global.tradeSessions.delete(sessionId);
-          return interaction.update({ content: completeMsg, embeds: [], components: [] });
+          return global.safeUpdate(interaction, { content: completeMsg, embeds: [], components: [] });
         }
 
         if (session.type === 'beli_for_card') {
@@ -473,7 +531,7 @@ module.exports = {
           const seller = target;
           if ((buyer.balance || 0) < session.beli) {
             global.tradeSessions.delete(sessionId);
-            return interaction.update({ content: 'Buyer no longer has enough Beli. Trade cancelled.', embeds: [], components: [] });
+            return global.safeUpdate(interaction, { content: 'Buyer no longer has enough Beli. Trade cancelled.', embeds: [], components: [] });
           }
 
           const shardId = session.shardReq?.shardId;
@@ -484,7 +542,7 @@ module.exports = {
               const sname = ITEM_DISPLAY_NAMES[shardId] || shardId;
               const semoji = ITEM_DISPLAY_EMOJIS[shardId] || '';
               global.tradeSessions.delete(sessionId);
-              return interaction.update({ content: `Buyer lacks required shards (${semoji} ${sname} x${shardCount}). Trade cancelled.`, embeds: [], components: [] });
+              return global.safeUpdate(interaction, { content: `Buyer lacks required shards (${semoji} ${sname} x${shardCount}). Trade cancelled.`, embeds: [], components: [] });
             }
           }
 
@@ -492,7 +550,7 @@ module.exports = {
           const requestedIndex = (seller.ownedCards || []).findIndex(e => e.cardId === session.requested.cardId);
           if (requestedIndex === -1) {
             global.tradeSessions.delete(sessionId);
-            return interaction.update({ content: 'Seller no longer owns the requested card. Trade cancelled.', embeds: [], components: [] });
+            return global.safeUpdate(interaction, { content: 'Seller no longer owns the requested card. Trade cancelled.', embeds: [], components: [] });
           }
 
           // perform transfers: buyer pays seller, shards move, card moves
@@ -512,7 +570,7 @@ module.exports = {
           // prevent trading if seller's card has an artifact equipped
           if (cardHasArtifactEquipped(seller, session.requested.cardId)) {
             global.tradeSessions.delete(sessionId);
-            return interaction.update({ content: 'Trade cancelled: Seller has an artifact equipped to that card. Unequip first.', embeds: [], components: [] });
+            return global.safeUpdate(interaction, { content: 'Trade cancelled: Seller has an artifact equipped to that card. Unequip first.', embeds: [], components: [] });
           }
 
           const requestedEntry = seller.ownedCards.splice(requestedIndex, 1)[0];
@@ -531,12 +589,12 @@ module.exports = {
           const requestedCard = getCardById(session.requested.cardId) || {};
           const reqName = requestedCard.ship ? `${requestedCard.character} (ship)` : `${requestedCard.emoji || ''} ${requestedCard.character}`;
           global.tradeSessions.delete(sessionId);
-          return interaction.update({ content: `Trade completed: ¥${session.beli.toLocaleString()} and ${shardPart}exchanged for ${reqName}.`, embeds: [], components: [] });
+          return global.safeUpdate(interaction, { content: `Trade completed: ¥${session.beli.toLocaleString()} and ${shardPart}exchanged for ${reqName}.`, embeds: [], components: [] });
         }
-      } catch (err) {
+        } catch (err) {
         console.error('Trade accept failed:', err);
         global.tradeSessions.delete(sessionId);
-        return interaction.update({ content: 'Trade failed due to an error. Check logs.', embeds: [], components: [] });
+        return global.safeUpdate(interaction, { content: 'Trade failed due to an error. Check logs.', embeds: [], components: [] });
       }
     }
   }
